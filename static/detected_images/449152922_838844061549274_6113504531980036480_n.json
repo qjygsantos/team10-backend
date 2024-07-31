@@ -1,0 +1,222 @@
+[
+    {
+        "type": "terminator",
+        "coordinates": [
+            329,
+            178
+        ],
+        "text": "start",
+        "width": 234,
+        "height": 120,
+        "id": 1
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            325,
+            178
+        ],
+        "text": null,
+        "width": 226,
+        "height": 124,
+        "id": 2
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            318,
+            281
+        ],
+        "text": "",
+        "width": 44,
+        "height": 86,
+        "id": 3
+    },
+    {
+        "type": "arrowhead",
+        "coordinates": [
+            318,
+            298
+        ],
+        "text": "",
+        "width": 36,
+        "height": 48,
+        "id": 4
+    },
+    {
+        "type": "data",
+        "coordinates": [
+            326,
+            404
+        ],
+        "text": "move forward (slow)",
+        "width": 304,
+        "height": 152,
+        "id": 5
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            303,
+            560
+        ],
+        "text": "",
+        "width": 62,
+        "height": 196,
+        "id": 6
+    },
+    {
+        "type": "arrowhead",
+        "coordinates": [
+            302,
+            618
+        ],
+        "text": "",
+        "width": 48,
+        "height": 80,
+        "id": 7
+    },
+    {
+        "type": "process",
+        "coordinates": [
+            324,
+            765
+        ],
+        "text": "turn left",
+        "width": 344,
+        "height": 206,
+        "id": 8
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            315,
+            948
+        ],
+        "text": "",
+        "width": 90,
+        "height": 180,
+        "id": 9
+    },
+    {
+        "type": "arrowhead",
+        "coordinates": [
+            314,
+            1010
+        ],
+        "text": "",
+        "width": 84,
+        "height": 80,
+        "id": 10
+    },
+    {
+        "type": "process",
+        "coordinates": [
+            849,
+            1168
+        ],
+        "text": "turn right",
+        "width": 306,
+        "height": 200,
+        "id": 11
+    },
+    {
+        "type": "arrowhead",
+        "coordinates": [
+            682,
+            1170
+        ],
+        "text": "",
+        "width": 48,
+        "height": 84,
+        "id": 12
+    },
+    {
+        "type": "decision",
+        "coordinates": [
+            282,
+            1171
+        ],
+        "text": "if no light",
+        "width": 300,
+        "height": 210,
+        "id": 13
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            563,
+            1175
+        ],
+        "text": "",
+        "width": 266,
+        "height": 78,
+        "id": 14
+    },
+    {
+        "type": "process",
+        "coordinates": [
+            309,
+            1578
+        ],
+        "text": "stop",
+        "width": 358,
+        "height": 236,
+        "id": 15
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            702,
+            1658
+        ],
+        "text": "",
+        "width": 472,
+        "height": 712,
+        "id": 16
+    },
+    {
+        "type": "arrow",
+        "coordinates": [
+            293,
+            1776
+        ],
+        "text": "",
+        "width": 70,
+        "height": 208,
+        "id": 17
+    },
+    {
+        "type": "arrowhead",
+        "coordinates": [
+            295,
+            1839
+        ],
+        "text": "",
+        "width": 58,
+        "height": 82,
+        "id": 18
+    },
+    {
+        "type": "arrowhead",
+        "coordinates": [
+            501,
+            1960
+        ],
+        "text": "",
+        "width": 54,
+        "height": 80,
+        "id": 19
+    },
+    {
+        "type": "terminator",
+        "coordinates": [
+            304,
+            1968
+        ],
+        "text": "end",
+        "width": 336,
+        "height": 148,
+        "id": 20
+    }
+]

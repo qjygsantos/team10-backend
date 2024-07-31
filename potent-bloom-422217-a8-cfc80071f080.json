@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "potent-bloom-422217-a8",
+  "private_key_id": "cfc80071f0806ab930d8353135170a1aa9d7cd11",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDZJg/mUp+ETQ1E\n9hAiwIfOthqH/Lgj8vOYgthHV50Nfg7XG1rlBBmMXlVe4moYRVVJQ3eH+KU2TC9n\nDx0yK6JHtXDoZMBz9DafobpxzDC8pOiEQbHqgfXAPpK6oqoi/NPY2A4Am7PtCNPG\nlFz1iF7FOas4aqqu7dKwv8wCke7+LnDNY4wlqgfhWAuXk+xqvMRuXx+zVhD1EZGi\nL5aG/Vfq1vHhu6PVLw+2+6MTnNVHRDpZe4qUmH6nAgVageeEX4HTBhQiBFdDct1p\nmS4CEvUwD2MXwEnt6e1BwFiMfl0Vzb+v5oI3x+wWeKausRQxfv6RQVuBdk/RL2C7\neCkwP0DhAgMBAAECggEAI8NOhA7ggbAU+uIRpz+RPlykgvf+tcD6GIiYKSvHTGUR\n+aBiOGyT7pfMtJtSgNvOX4oSghzTzN0AQ5dsJgqkp+28gjGxtocmheTjaYGJF1CL\nkNim/inYOQi1LrLClY+RLlnq+HOsTuIQytg9dRy4CwBj8B81LCkz9XMpHNU/CLJ8\nrFp54Z9bqyo4K/JFTX6Wcdn8FPmpMQaPpljd5Q56cfgswzxJn3J20J6Hnt7HV5Hz\nRw+v8D0pqUkT6foQDP+95e9E1aoD42hah9SEHhBAg2s50luTVGdpaGsHm5gTyth3\nYhzH399+hOdsct+7e+unDp4w0qnbG+Fe87JoecGfxwKBgQDtjg6NxebYV/mdG7sQ\neBrnIe9VrWnGsU8bOYTNxPALtpBrEz6VFm67BYiimjCny+TKygGPOkfhrztTFErr\nX+1efcCTQGB5uFuSGepmMNomOs4P9OFg/kwhy6sM8xvSyKjJCBrmjzRGmSvy1GUE\nTZtWDHVso5MVH8N3CLLp6GQZzwKBgQDqAmKXIJuO0rIWuSvatUnQGdkQH2DlRORg\nBXFMRqmEHt3+9si+uhm6wvHmMnj+AIrU2QnkBBwIY0i5uG3kMpYxGOGuENSg2dEs\nZwIdad+4zSd9e5EKEgyV/jzbNWW7pf9mkR34Emvcsgmz56t1irTZ89OSWKvdc7tG\n97jTpQSWTwKBgQCsz0mBEvVCboU0KCcl7OlNOJ99yUAIfZXZbTdR5TDmpHFco0xE\ncmQtAvKJrvc0KZwPdXI6+h+uaqYSYtG5djgcJAjCVfOYuGdM2jNtEZ6wbtjWPMLz\npypE739IVVXpOXWngJDpJkXWEbkp1h6CSd51c2y8kiX+GPQ9lINqq1aeewKBgD0c\nkFi9WEKNPZr3kr9UFsm05l3yg+B8BFQbN8JetcheM0Vxd21vtmZyoK+oQLa8t4Ts\nhUu50wRRwV1XD8PHfjemMtG9bXnwSFMbN48s5hMh6I05puAFZKoLMiNhJ4dAy5ki\njrwJO4fwKt6DwuA4cBB3P6p5Y7C6l47qBKeo8bC7AoGAIewFLhqO0pwpKkPNtoyW\nmCCiOdSOrwze1NYfDD5iJhJtPjaHktvW1ROQ0KHgrwzpa6gPT2smxZCgxnZ/GE5m\nv3Nja+RXTDJsxWsdfWN1+cEJmCRk9ShGkvZSnYlOii48WNhORD2/HxU/Ej09c6g0\niDr0bAvSna5LZXFq5BhS0Ik=\n-----END PRIVATE KEY-----\n",
+  "client_email": "psykitz@potent-bloom-422217-a8.iam.gserviceaccount.com",
+  "client_id": "112316498601714749547",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/psykitz%40potent-bloom-422217-a8.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
