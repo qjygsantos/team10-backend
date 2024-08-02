@@ -12,9 +12,14 @@ import json
 from difflib import get_close_matches  
 
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "potent-bloom-422217-a8-8b6e616ee921.json"
-
 app = Flask(__name__)
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_google_credentials.json"
+
+# Create a temporary credentials file
+google_cloud_credentials = os.environ.get('GOOGLE_CLOUD_CREDENTIALS')
+with open('temp_google_credentials.json', 'w') as temp_file:
+    temp_file.write(google_cloud_credentials)
 
 # Define predefined commands and symbols
 predefined_commands = [
