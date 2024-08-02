@@ -12,6 +12,7 @@ import json
 from difflib import get_close_matches  
 
 
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "potent-bloom-422217-a8-8b6e616ee921.json"
 
 app = Flask(__name__)
 
@@ -143,7 +144,6 @@ def upload_image():
         )
         
         #OCR API keyyy
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "potent-bloom-422217-a8-cfc80071f080.json"
 
         #perform detection
         detection_result = OCR_CLIENT.detect_diagram(image_path)
