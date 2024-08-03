@@ -9,6 +9,8 @@ from PIL import Image, ImageDraw, ImageFont
 import difflib
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+from inference_sdk import InferenceHTTPClient, InferenceConfiguration
+
 
 # Ensure the temp directory exists
 if not os.path.exists('temp'):
