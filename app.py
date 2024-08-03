@@ -11,12 +11,10 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 
-
-
-
-# Ensure the temp directory exists
-if not os.path.exists('temp'):
-    os.makedirs('temp')
+# Ensure the necessary directories exist
+for directory in ['static/objects', 'static/detected_images']:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # Set environment variables for credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"  # For Google Cloud Vision API
@@ -42,7 +40,6 @@ predefined_conditions = [
     "if obstacle ahead", "if no obstacle", "if light detected", "if no light",
     "start", "end"
 ]
-
 
 class InferenceClient:
     def __init__(self, api_url, api_key, model_id):
@@ -86,11 +83,10 @@ class InferenceClient:
 
             roi = image[y1:y2, x1:x2]
             roi_filename = f'cropped_image_{idx}.jpg'
-            roi_path = f'temp/{roi_filename}'
+            roi_path = os.path.join('static/objects', roi_filename)
             cv2.imwrite(roi_path, roi)
             
             # Upload cropped image to Firebase Storage
-            bucket = storage.bucket()
             blob = bucket.blob(f'objects/{roi_filename}')
             blob.upload_from_filename(roi_path)
 
@@ -157,7 +153,7 @@ def upload_image():
     
     if file:
         # Save the uploaded image to a temporary path
-        image_path = os.path.join('temp', file.filename)
+        image_path = os.path.join('static/objects', file.filename)
         file.save(image_path)
 
         # Initialize OCR client
@@ -174,18 +170,16 @@ def upload_image():
         output_image_path = draw_bounding_boxes(image_path, detection_result)
 
         # Upload processed image to Firebase Storage
-        bucket = storage.bucket()
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
         blob.upload_from_filename(output_image_path)
         image_url = blob.public_url
 
         # Save JSON results
-        json_output_path = os.path.join('temp', file.filename.split('.')[0] + '.json')
+        json_output_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
         with open(json_output_path, 'w') as json_file:
             json.dump(detection_result, json_file, indent=4)
 
         # Upload JSON to Firebase Storage
-        bucket = storage.bucket()
         json_blob = bucket.blob(f'detected_images/{os.path.basename(json_output_path)}')
         json_blob.upload_from_filename(json_output_path)
         json_url = json_blob.public_url
@@ -231,7 +225,7 @@ def draw_bounding_boxes(image_path, detections):
         text_position = (x - width // 2 - 10, y - height // 2)
         draw.text(text_position, text_to_draw, font=font, fill="blue")
             
-    output_image_path = os.path.join('temp', os.path.basename(image_path))
+    output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
     image.save(output_image_path)
     return output_image_path
 
