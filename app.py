@@ -27,6 +27,9 @@ app = Flask(__name__)
 cred = credentials.Certificate("/etc/secrets/potent-bloom-422217-a8-firebase-adminsdk-dwshx-4b95a830d0.json")
 firebase_admin.initialize_app(cred,{'storageBucket': 'potent-bloom-422217-a8.appspot.com'})
 
+db = firestore.client()
+bucket = storage.bucket()
+
 # Define predefined commands and symbols
 predefined_commands = [
     "move forward (slow)", "move forward (normal)", "move forward (fast)",
