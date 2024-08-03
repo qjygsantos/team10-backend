@@ -1,9 +1,8 @@
-from flask import Flask, request, jsonify, render_template
-from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 import os
 import json
 import cv2
 import requests
+from flask import Flask, request, jsonify, render_template
 from google.cloud import vision
 from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont
@@ -16,8 +15,8 @@ if not os.path.exists('temp'):
     os.makedirs('temp')
 
 # Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"
-os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"] = "/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"  # For Google Cloud Vision API
+os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"] = "/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json"  # For Firebase
 
 app = Flask(__name__)
 
@@ -29,19 +28,6 @@ firebase_admin.initialize_app(firebase_cred, {
 db = firestore.Client()
 bucket = storage.bucket()
 
-# Define predefined commands and symbols
-predefined_commands = [
-    "move forward (slow)", "move forward (normal)", "move forward (fast)",
-    "move backward (slow)", "move backward (normal)", "move backward (fast)",
-    "turn left", "drive forward", "turn right", "spin", "make sound", "stop",
-    "turn on light", "turn off light", "wait for", "play sound", "repeat"
-]
-
-predefined_conditions = [
-    "if obstacle ahead", "if no obstacle", "if light detected", "if no light",
-    "start", "end"
-]
-
 class InferenceClient:
     def __init__(self, api_url, api_key, model_id):
         self.api_url = api_url
@@ -49,6 +35,7 @@ class InferenceClient:
         self.model_id = model_id
 
     def detect_handwriting(self, data):
+        # Initialize Google Cloud Vision Client
         client = vision.ImageAnnotatorClient()
         with open(data, 'rb') as image_file:
             content = image_file.read()
@@ -230,4 +217,4 @@ def draw_bounding_boxes(image_path, detections):
     return output_image_path
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True)
