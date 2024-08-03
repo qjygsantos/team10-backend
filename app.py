@@ -30,6 +30,20 @@ firebase_admin.initialize_app(firebase_cred, {
 db = firestore.Client()
 bucket = storage.bucket()
 
+# Define predefined commands and symbols
+predefined_commands = [
+    "move forward (slow)", "move forward (normal)", "move forward (fast)",
+    "move backward (slow)", "move backward (normal)", "move backward (fast)",
+    "turn left", "drive forward", "turn right", "spin", "make sound", "stop",
+    "turn on light", "turn off light", "wait for", "play sound", "repeat"
+]
+
+predefined_conditions = [
+    "if obstacle ahead", "if no obstacle", "if light detected", "if no light",
+    "start", "end"
+]
+
+
 class InferenceClient:
     def __init__(self, api_url, api_key, model_id):
         self.api_url = api_url
