@@ -1,20 +1,29 @@
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, render_template
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
-import requests
-import difflib
-import cv2
 import os
+import json
+import cv2
+import requests
 from google.cloud import vision
 from google.cloud.vision_v1 import types
-import difflib
 from PIL import Image, ImageDraw, ImageFont
-import json
-from difflib import get_close_matches  
+import difflib
+import firebase_admin
+from firebase_admin import credentials, firestore, storage
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"
+# Set environment variables for credentials
+os.environ["GOOGLE_APPLICATION_CREDENTIALS_VISION"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"] = "/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json"
+
+# Initialize Firebase Admin
+firebase_cred = credentials.Certificate(os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"])
+firebase_admin.initialize_app(firebase_cred, {
+    'storageBucket': 'your-bucket-name.appspot.com'  # Replace with your Firebase Storage bucket name
+})
+db = firestore.Client()
+bucket = storage.bucket()
 
 app = Flask(__name__)
-
 
 # Define predefined commands and symbols
 predefined_commands = [
@@ -69,8 +78,13 @@ class InferenceClient:
             y2 = y + height // 2
 
             roi = image[y1:y2, x1:x2]
-            output_image_path = f'static/objects/cropped_image_{idx}.jpg'
+            output_image_path = f'/tmp/cropped_image_{idx}.jpg'
             cv2.imwrite(output_image_path, roi)
+
+            # Upload cropped image to Firebase Storage
+            cropped_blob = bucket.blob(f'objects/cropped_image_{idx}.jpg')
+            cropped_blob.upload_from_filename(output_image_path)
+            cropped_image_url = cropped_blob.public_url
 
             text = self.perform_ocr(output_image_path)
 
@@ -83,8 +97,8 @@ class InferenceClient:
                 'coordinates': (x, y),
                 'text': matched_command if text != "No text detected" else "",
                 'width': width,
-                'height': height
-
+                'height': height,
+                'image_url': cropped_image_url
             }
             detection_result.append(detection_with_ocr)
 
@@ -129,56 +143,65 @@ def upload_image():
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    
-    
+
     if file:
-        #upload and save input image to path
-        image_path = os.path.join('static/detected_images', file.filename)
+        # Upload and save input image to path
+        image_path = os.path.join('/tmp/', file.filename)  # Temporary path for processing
         file.save(image_path)
-        
-        #instantiate
+
+        # Instantiate
         OCR_CLIENT = InferenceClient(
             api_url="https://detect.roboflow.com",
             api_key="A6HQefLyBwFRsvEb8Adr",
-            model_id = "handwritten-flowchart-part-3/15"
+            model_id="handwritten-flowchart-part-3/15"
         )
-        
-        #OCR API keyyy
 
-        #perform detection
+        # Perform detection
         detection_result = OCR_CLIENT.detect_diagram(image_path)
 
         # Save the image with bounding boxes
         output_image_path = draw_bounding_boxes(image_path, detection_result)
 
-        # Save JSON results
-        json_output_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
+        # Upload image and JSON to Firebase Storage
+        image_blob = bucket.blob(f'detected_images/{file.filename}')
+        image_blob.upload_from_filename(output_image_path)
+        image_url = image_blob.public_url
+
+        json_output_path = os.path.join('/tmp/', file.filename.split('.')[0] + '.json')
         with open(json_output_path, 'w') as json_file:
             json.dump(detection_result, json_file, indent=4)
-         
-         
-        # Clean up temp images 
-        objects_folder = 'static/objects'
-        for filename in os.listdir(objects_folder):
-            file_path = os.path.join(objects_folder, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
+
+        json_blob = bucket.blob(f'detected_images/{file.filename.split('.')[0]}.json')
+        json_blob.upload_from_filename(json_output_path)
+        json_url = json_blob.public_url
+
+        # Save data to Firestore
+        doc_ref = db.collection('detections').document(file.filename.split('.')[0])
+        doc_ref.set({
+            'image_url': image_url,
+            'json_url': json_url
+        })
+
+        # Clean up temp images
+        os.remove(image_path)
+        os.remove(output_image_path)
+        os.remove(json_output_path)
 
         return jsonify({
             "message": "File processed successfully",
-            "image_url": output_image_path,
-            "json_url": json_output_path
+            "image_url": image_url,
+            "json_url": json_url
         })
 
 def draw_bounding_boxes(image_path, detections):
-    #take image
+    # Take image
     image = Image.open(image_path)
     draw = ImageDraw.Draw(image)
 
     font_size = 12  # Increase this value for a larger font
     font = ImageFont.load_default()
     
-    #put bounding box
+    # Put bounding box
     for detection in detections:
         x, y = detection['coordinates']
         width = detection['width']
@@ -195,27 +218,10 @@ def draw_bounding_boxes(image_path, detections):
         text_position = (x - width // 2 - 10, y - height // 2)  # Move text left and adjust vertical position
         draw.text(text_position, text_to_draw, font=font, fill="blue")
             
-    #save image with bounding box
-    output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
+    # Save image with bounding box
+    output_image_path = os.path.join('/tmp/', os.path.basename(image_path))
     image.save(output_image_path) 
     return output_image_path
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
