@@ -24,7 +24,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217
 app = Flask(__name__)
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("potent-bloom-422217-a8-firebase-adminsdk-dwshx-4b95a830d0.json")
+cred = credentials.Certificate("/etc/secrets/potent-bloom-422217-a8-firebase-adminsdk-dwshx-4b95a830d0.json")
 firebase_admin.initialize_app(cred,{'storageBucket': 'potent-bloom-422217-a8.appspot.com'})
 
 # Define predefined commands and symbols
