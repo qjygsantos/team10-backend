@@ -11,15 +11,10 @@ from PIL import Image, ImageDraw, ImageFont
 import json
 from difflib import get_close_matches  
 
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"
 
 app = Flask(__name__)
 
-google_cloud_credentials = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
-with open('temp_google_credentials.json', 'w') as temp_file:
-    temp_file.write(google_cloud_credentials)
-
-# Set the GOOGLE_APPLICATION_CREDENTIALS to point to the temporary file
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'temp_google_credentials.json'
 
 # Define predefined commands and symbols
 predefined_commands = [
