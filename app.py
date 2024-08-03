@@ -25,7 +25,7 @@ app = Flask(__name__)
 
 # Initialize Firebase Admin
 cred = credentials.Certificate("potent-bloom-422217-a8-firebase-adminsdk-dwshx-4b95a830d0.json")
-firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app(cred,{'storageBucket': 'potent-bloom-422217-a8.appspot.com'})
 
 # Define predefined commands and symbols
 predefined_commands = [
@@ -85,8 +85,9 @@ class InferenceClient:
             roi_filename = f'cropped_image_{idx}.jpg'
             roi_path = f'temp/{roi_filename}'
             cv2.imwrite(roi_path, roi)
-
+            
             # Upload cropped image to Firebase Storage
+            bucket = storage.bucket()
             blob = bucket.blob(f'objects/{roi_filename}')
             blob.upload_from_filename(roi_path)
 
@@ -170,6 +171,7 @@ def upload_image():
         output_image_path = draw_bounding_boxes(image_path, detection_result)
 
         # Upload processed image to Firebase Storage
+        bucket = storage.bucket()
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
         blob.upload_from_filename(output_image_path)
         image_url = blob.public_url
@@ -180,6 +182,7 @@ def upload_image():
             json.dump(detection_result, json_file, indent=4)
 
         # Upload JSON to Firebase Storage
+        bucket = storage.bucket()
         json_blob = bucket.blob(f'detected_images/{os.path.basename(json_output_path)}')
         json_blob.upload_from_filename(json_output_path)
         json_url = json_blob.public_url
