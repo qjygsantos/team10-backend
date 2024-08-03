@@ -12,23 +12,20 @@ from firebase_admin import credentials, firestore, storage
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 
 
+
+
 # Ensure the temp directory exists
 if not os.path.exists('temp'):
     os.makedirs('temp')
 
 # Set environment variables for credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"  # For Google Cloud Vision API
-os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"] = "/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json"  # For Firebase
 
 app = Flask(__name__)
 
 # Initialize Firebase Admin
-firebase_cred = credentials.Certificate(os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"])
-firebase_admin.initialize_app(firebase_cred, {
-    'storageBucket': 'psykitz-891d8.appspot.com'
-})
-db = firestore.Client()
-bucket = storage.bucket()
+cred = credentials.Certificate("potent-bloom-422217-a8-firebase-adminsdk-dwshx-4b95a830d0.json")
+firebase_admin.initialize_app(cred)
 
 # Define predefined commands and symbols
 predefined_commands = [
