@@ -11,21 +11,23 @@ import difflib
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
+# Ensure the temp directory exists
+if not os.path.exists('temp'):
+    os.makedirs('temp')
+
 # Set environment variables for credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"
 os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"] = "/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json"
 
-
 app = Flask(__name__)
+
 # Initialize Firebase Admin
 firebase_cred = credentials.Certificate(os.environ["GOOGLE_APPLICATION_CREDENTIALS_FIREBASE"])
 firebase_admin.initialize_app(firebase_cred, {
-    'storageBucket': 'psykitz-891d8.appspot.com'  # Replace with your Firebase Storage bucket name
+    'storageBucket': 'psykitz-891d8.appspot.com'
 })
 db = firestore.Client()
 bucket = storage.bucket()
-
-
 
 # Define predefined commands and symbols
 predefined_commands = [
@@ -228,4 +230,4 @@ def draw_bounding_boxes(image_path, detections):
     return output_image_path
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
