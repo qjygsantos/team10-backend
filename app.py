@@ -14,12 +14,12 @@ from difflib import get_close_matches
 
 app = Flask(__name__)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_google_credentials.json"
-
-# Create a temporary credentials file
-google_cloud_credentials = os.environ.get('GOOGLE_CLOUD_CREDENTIALS')
+google_cloud_credentials = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
 with open('temp_google_credentials.json', 'w') as temp_file:
     temp_file.write(google_cloud_credentials)
+
+# Set the GOOGLE_APPLICATION_CREDENTIALS to point to the temporary file
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'temp_google_credentials.json'
 
 # Define predefined commands and symbols
 predefined_commands = [
