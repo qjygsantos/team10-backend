@@ -176,7 +176,7 @@ def draw_bounding_boxes(image_path, detections):
     draw = ImageDraw.Draw(image)
 
     font_size = 12  # Increase this value for a larger font
-    font = ImageFont.truetype("arial.ttf", font_size)  # Adjust font and size as needed
+    font = ImageFont.load_default()
     
     #put bounding box
     for detection in detections:
