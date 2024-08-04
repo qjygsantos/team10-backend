@@ -22,8 +22,8 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217
 app = Flask(__name__)
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("/etc/secrets/potent-bloom-422217-a8-firebase-adminsdk-dwshx-4b95a830d0.json")
-firebase_admin.initialize_app(cred,{'storageBucket': 'potent-bloom-422217-a8.appspot.com'})
+cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888")
+firebase_admin.initialize_app(cred,{'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
 bucket = storage.bucket()
@@ -85,13 +85,6 @@ class InferenceClient:
             roi_filename = f'cropped_image_{idx}.jpg'
             roi_path = os.path.join('static/objects', roi_filename)
             cv2.imwrite(roi_path, roi)
-            
-            # Upload cropped image to Firebase Storage
-            blob = bucket.blob(f'objects/{roi_filename}')
-            blob.upload_from_filename(roi_path)
-
-            # Generate URL for the uploaded image
-            roi_url = blob.public_url
 
             text = self.perform_ocr(roi_path)
 
