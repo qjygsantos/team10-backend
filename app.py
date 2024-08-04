@@ -22,7 +22,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217
 app = Flask(__name__)
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888")
+cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
 firebase_admin.initialize_app(cred,{'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
