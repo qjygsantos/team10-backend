@@ -168,31 +168,31 @@ def upload_image():
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
         # Save JSON results
-        json_output_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
-        with open(json_output_path, 'w') as json_file:
-            json.dump(detection_result, json_file, indent=4)
+        generated_code_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
+        with open(generated_code_path, 'w') as generated_code_file:
+            json.dump(detection_result, generated_code_file, indent=4)
 
         # Upload JSON to Firebase Storage
-        json_blob = bucket.blob(f'detected_images/{os.path.basename(json_output_path)}')
-        json_blob.upload_from_filename(json_output_path)
-        json_url = json_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        generated_code_blob = bucket.blob(f'detected_images/{os.path.basename(generated_code_path)}')
+        generated_code_blob.upload_from_filename(generated_code_path)
+        generated_code_url = generated_code_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
         
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
         doc_ref.set({
             'image_url': image_url,
-            'json_url': json_url
+            'json_url': generated_code_url
         })
 
         # Clean up temporary files
         os.remove(image_path)
         os.remove(output_image_path)
-        os.remove(json_output_path)
+        os.remove(generated_code_path)
 
         return jsonify({
             "message": "File processed successfully",
             "image_url": image_url,
-            "json_url": json_url
+            "json_url": generated_code_url
         })
 
 def draw_bounding_boxes(image_path, detections):
