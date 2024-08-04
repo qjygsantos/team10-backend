@@ -98,7 +98,6 @@ class InferenceClient:
                 'text': matched_command if text != "No text detected" else "",
                 'width': width,
                 'height': height,
-                'image_url': roi_url
             }
             detection_result.append(detection_with_ocr)
 
