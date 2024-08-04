@@ -7,6 +7,7 @@ from google.cloud import vision
 from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont
 import difflib
+import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
@@ -164,7 +165,7 @@ def upload_image():
         # Upload processed image to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
         blob.upload_from_filename(output_image_path)
-        image_url = blob.public_url
+        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
         # Save JSON results
         json_output_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
@@ -174,7 +175,7 @@ def upload_image():
         # Upload JSON to Firebase Storage
         json_blob = bucket.blob(f'detected_images/{os.path.basename(json_output_path)}')
         json_blob.upload_from_filename(json_output_path)
-        json_url = json_blob.public_url
+        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
         
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
