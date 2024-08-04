@@ -199,7 +199,7 @@ def draw_bounding_boxes(image_path, detections):
     image = Image.open(image_path)
     draw = ImageDraw.Draw(image)
 
-    font_size = 14
+    font_size = 20
     font = ImageFont.load_default()
     
     for detection in detections:
