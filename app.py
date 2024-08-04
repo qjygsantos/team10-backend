@@ -30,16 +30,15 @@ db = firestore.client()
 bucket = storage.bucket()
 
 # Define predefined commands and symbols
+
 predefined_commands = [
-    "move forward (slow)", "move forward (normal)", "move forward (fast)",
-    "move backward (slow)", "move backward (normal)", "move backward (fast)",
-    "turn left", "drive forward", "turn right", "spin", "make sound", "stop",
-    "turn on light", "turn off light", "wait for", "play sound", "repeat"
+    "move forward", "move backward", "turn left", "drive forward", "drive backward", "turn right", "spin", 
+    "stop", "turn on light", "turn off light", "play sound", "repeat"
 ]
 
 predefined_conditions = [
     "if obstacle ahead", "if no obstacle", "if light detected", "if no light",
-    "start", "end"
+    "start", "end", "if touch sensor pressed"
 ]
 
 class InferenceClient:
