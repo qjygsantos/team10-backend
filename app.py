@@ -181,7 +181,7 @@ def upload_image():
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
         doc_ref.set({
             'image_url': image_url,
-            'json_url': generated_code_url
+            'generated_code_url': generated_code_url
         })
 
         # Clean up temporary files
@@ -192,7 +192,7 @@ def upload_image():
         return jsonify({
             "message": "File processed successfully",
             "image_url": image_url,
-            "json_url": generated_code_url
+            "generated_code_url": generated_code_url
         })
 
 def draw_bounding_boxes(image_path, detections):
