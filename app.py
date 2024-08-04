@@ -175,7 +175,7 @@ def upload_image():
         # Upload JSON to Firebase Storage
         json_blob = bucket.blob(f'detected_images/{os.path.basename(json_output_path)}')
         json_blob.upload_from_filename(json_output_path)
-        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        json_url = json_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
         
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
