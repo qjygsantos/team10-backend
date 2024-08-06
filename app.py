@@ -142,12 +142,25 @@ class InferenceClient:
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
             cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
+    
             label = f"{detection['id']}. {detection['type']}"
             if detection['command']:
                 label += f" - {detection['command']}"
-            cv2.putText(image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 2)
-
+    
+            # Adjust the font type and size for a friendlier look
+            font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
+            font_scale = 1.3  # Slightly larger font size for readability
+            font_color = (147, 117, 27)  # Light blue color in BGR
+            font_thickness = 2
+    
+            # Calculate the new position for the label to move it to the right of the box
+            text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
+            text_x = x2 + 5  # Move the text to the right of the bounding box
+            text_y = y1 + 4 + text_size[1]  # Align text vertically with the top of the bounding box
+    
+            # Put text on the image with the updated font settings
+            cv2.putText(image, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
+    
         output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
         cv2.imwrite(output_image_path, image)
         return output_image_path
