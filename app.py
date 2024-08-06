@@ -149,7 +149,7 @@ class InferenceClient:
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (127, 0, 255, 2)
+            cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (127, 0, 255, 2))
 
             label = f"{detection['id']}. {detection['type']}"
             if detection['command']:
