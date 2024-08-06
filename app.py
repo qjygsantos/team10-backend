@@ -61,7 +61,7 @@ class InferenceClient:
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.4)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.5)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
@@ -149,7 +149,7 @@ class InferenceClient:
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (127, 0, 255, 2)
 
             label = f"{detection['id']}. {detection['type']}"
             if detection['command']:
@@ -157,7 +157,7 @@ class InferenceClient:
 
             # Adjust the font type and size for a friendlier look
             font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 1.5  # Slightly larger font size for readability
+            font_scale = 1.1  # Slightly larger font size for readability
             font_color = (147, 117, 27)  # Light blue color in BGR
             font_thickness = 2
 
