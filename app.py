@@ -134,6 +134,7 @@ class InferenceClient:
             
     def print_result_with_ocr(self, detection_result, image_path):
         # Convert back to RGB if the image is grayscale
+        image = cv2.imread(image_path)
         if len(image.shape) == 2 or image.shape[2] == 1:  # Check if the image is single channel
             image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         else:
@@ -155,7 +156,7 @@ class InferenceClient:
     
             # Adjust the font type and size for a friendlier look
             font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 1.3  # Slightly larger font size for readability
+            font_scale = 1.2  # Slightly larger font size for readability
             font_color = (147, 117, 27)  # Light blue color in BGR
             font_thickness = 2
     
