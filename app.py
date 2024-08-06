@@ -61,7 +61,7 @@ class InferenceClient:
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.5)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.4)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
@@ -199,12 +199,6 @@ def upload_image():
 
         # Resize and stretch to 416x416
         img = img.resize((416, 416), Image.ANTIALIAS)
-
-        # Convert to Grayscale
-        img = ImageOps.grayscale(img)
-
-        # Auto-Adjust Contrast using Adaptive Equalization
-        img = ImageOps.equalize(img, mask=None)
 
         # Save the preprocessed image
         preprocessed_image_path = os.path.join('static/objects', 'preprocessed_' + file.filename)
