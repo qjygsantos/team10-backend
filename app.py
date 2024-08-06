@@ -223,12 +223,12 @@ def upload_image():
         # Save the image with bounding boxes (converted back to RGB if necessary)
         output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, preprocessed_image_path)
 
-        # Upload image to Firebase Storage
-        output_image_blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-        output_image_blob.upload_from_filename(output_image_path)
-        image_url = output_image_blob.public_url
+        # Upload processed image to Firebase Storage
+        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+        blob.upload_from_filename(output_image_path)
+        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
-        # Save detection result to a JSON file
+        # Save JSON results
         generated_code_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
         with open(generated_code_path, 'w') as generated_code_file:
             json.dump(detection_result, generated_code_file, indent=4)
@@ -236,7 +236,7 @@ def upload_image():
         # Upload JSON to Firebase Storage
         generated_code_blob = bucket.blob(f'detected_images/{os.path.basename(generated_code_path)}')
         generated_code_blob.upload_from_filename(generated_code_path)
-        generated_code_url = generated_code_blob.public_url
+        generated_code_url = ''
 
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
