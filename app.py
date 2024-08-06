@@ -136,8 +136,11 @@ class InferenceClient:
         # Read the preprocessed image
         image = cv2.imread(image_path)
         
-        # Convert back to RGB
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        # Convert back to RGB if the image is grayscale
+        if len(image.shape) == 2 or image.shape[2] == 1:  # Check if the image is single channel
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        else:
+            image_rgb = image
 
         print("Inference Results with OCR:")
         for detection in detection_result:
@@ -217,15 +220,15 @@ def upload_image():
         # Perform detection using the preprocessed image
         detection_result = OCR_CLIENT.detect_diagram(preprocessed_image_path)
 
-        # Save the image with bounding boxes (converted back to RGB)
+        # Save the image with bounding boxes (converted back to RGB if necessary)
         output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, preprocessed_image_path)
 
-        # Upload processed image to Firebase Storage
-        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-        blob.upload_from_filename(output_image_path)
-        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        # Upload image to Firebase Storage
+        output_image_blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+        output_image_blob.upload_from_filename(output_image_path)
+        image_url = output_image_blob.public_url
 
-        # Save JSON results
+        # Save detection result to a JSON file
         generated_code_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
         with open(generated_code_path, 'w') as generated_code_file:
             json.dump(detection_result, generated_code_file, indent=4)
@@ -233,7 +236,7 @@ def upload_image():
         # Upload JSON to Firebase Storage
         generated_code_blob = bucket.blob(f'detected_images/{os.path.basename(generated_code_path)}')
         generated_code_blob.upload_from_filename(generated_code_path)
-        generated_code_url = ''
+        generated_code_url = generated_code_blob.public_url
 
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
