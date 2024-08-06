@@ -5,7 +5,7 @@ import requests
 from flask import Flask, request, jsonify, render_template
 from google.cloud import vision
 from google.cloud.vision_v1 import types
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageOps, ImageEnhance
 import difflib
 import datetime
 import firebase_admin
@@ -133,7 +133,12 @@ class InferenceClient:
             return None
 
     def print_result_with_ocr(self, detection_result, image_path):
+        # Read the preprocessed image
         image = cv2.imread(image_path)
+        
+        # Convert back to RGB
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
         print("Inference Results with OCR:")
         for detection in detection_result:
             print(detection)
@@ -141,28 +146,28 @@ class InferenceClient:
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    
+            cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
             label = f"{detection['id']}. {detection['type']}"
             if detection['command']:
                 label += f" - {detection['command']}"
-    
+
             # Adjust the font type and size for a friendlier look
             font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 1.3  # Slightly larger font size for readability
+            font_scale = 1.5  # Slightly larger font size for readability
             font_color = (147, 117, 27)  # Light blue color in BGR
             font_thickness = 2
-    
+
             # Calculate the new position for the label to move it to the right of the box
             text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
             text_x = x2 + 5  # Move the text to the right of the bounding box
-            text_y = y1 + 4 + text_size[1]  # Align text vertically with the top of the bounding box
-    
+            text_y = y1 + text_size[1] + 15  # Align text vertically with the top of the bounding box
+
             # Put text on the image with the updated font settings
-            cv2.putText(image, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
-    
+            cv2.putText(image_rgb, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
+
         output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-        cv2.imwrite(output_image_path, image)
+        cv2.imwrite(output_image_path, image_rgb)
         return output_image_path
 
 @app.route('/')
@@ -182,6 +187,25 @@ def upload_image():
         # Save the uploaded image to a temporary path
         image_path = os.path.join('static/objects', file.filename)
         file.save(image_path)
+        
+        # Open image using PIL
+        img = Image.open(image_path)
+
+        # Auto-Orient
+        img = ImageOps.exif_transpose(img)
+
+        # Resize and stretch to 416x416
+        img = img.resize((416, 416), Image.ANTIALIAS)
+
+        # Convert to Grayscale
+        img = ImageOps.grayscale(img)
+
+        # Auto-Adjust Contrast using Adaptive Equalization
+        img = ImageOps.equalize(img, mask=None)
+
+        # Save the preprocessed image
+        preprocessed_image_path = os.path.join('static/objects', 'preprocessed_' + file.filename)
+        img.save(preprocessed_image_path)
 
         # Initialize OCR client
         OCR_CLIENT = InferenceClient(
@@ -190,11 +214,11 @@ def upload_image():
             model_id="handwritten-flowchart-part-3/15"
         )
         
-        # Perform detection
-        detection_result = OCR_CLIENT.detect_diagram(image_path)
+        # Perform detection using the preprocessed image
+        detection_result = OCR_CLIENT.detect_diagram(preprocessed_image_path)
 
-        # Save the image with bounding boxes
-        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, image_path)
+        # Save the image with bounding boxes (converted back to RGB)
+        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, preprocessed_image_path)
 
         # Upload processed image to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
@@ -220,6 +244,7 @@ def upload_image():
 
         # Clean up temporary files
         os.remove(image_path)
+        os.remove(preprocessed_image_path)
         os.remove(output_image_path)
         os.remove(generated_code_path)
 
