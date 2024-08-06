@@ -132,33 +132,33 @@ class InferenceClient:
         else:
             return None
 
-def print_result_with_ocr(self, detection_result, image_path):
-    image = cv2.imread(image_path)
-    print("Inference Results with OCR:")
-    for detection in detection_result:
-        print(detection)
-        x1 = int(detection["coordinates"][0] - detection["width"] // 2)
-        y1 = int(detection["coordinates"][1] - detection["height"] // 2)
-        x2 = int(detection["coordinates"][0] + detection["width"] // 2)
-        y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-        label = f"{detection['id']}. {detection['type']}"
-        if detection['command']:
-            label += f" - {detection['command']}"
-
-        # Adjust the font type and size for a friendlier look
-        font = cv2.FONT_HERSHEY_DUPLEX
-        font_scale = 1.0
-        font_color = (255, 0, 0)  # Blue color in BGR
-        font_thickness = 2
-
-        # Put text on the image with the updated font settings
-        cv2.putText(image, label, (x1, y1 - 10), font, font_scale, font_color, font_thickness)
-
-    output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-    cv2.imwrite(output_image_path, image)
-    return output_image_path
+    def print_result_with_ocr(self, detection_result, image_path):
+        image = cv2.imread(image_path)
+        print("Inference Results with OCR:")
+        for detection in detection_result:
+            print(detection)
+            x1 = int(detection["coordinates"][0] - detection["width"] // 2)
+            y1 = int(detection["coordinates"][1] - detection["height"] // 2)
+            x2 = int(detection["coordinates"][0] + detection["width"] // 2)
+            y2 = int(detection["coordinates"][1] + detection["height"] // 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    
+            label = f"{detection['id']}. {detection['type']}"
+            if detection['command']:
+                label += f" - {detection['command']}"
+    
+            # Adjust the font type and size for a friendlier look
+            font = cv2.FONT_HERSHEY_DUPLEX
+            font_scale = 1.0
+            font_color = (255, 0, 0)  # Blue color in BGR
+            font_thickness = 2
+    
+            # Put text on the image with the updated font settings
+            cv2.putText(image, label, (x1, y1 - 10), font, font_scale, font_color, font_thickness)
+    
+        output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
+        cv2.imwrite(output_image_path, image)
+        return output_image_path
 
 @app.route('/')
 def index():
