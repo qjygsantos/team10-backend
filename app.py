@@ -131,17 +131,15 @@ class InferenceClient:
             return closest_match[0]
         else:
             return None
-
+            
     def print_result_with_ocr(self, detection_result, image_path):
-        # Read the preprocessed image
-        image = cv2.imread(image_path)
-        
         # Convert back to RGB if the image is grayscale
         if len(image.shape) == 2 or image.shape[2] == 1:  # Check if the image is single channel
             image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         else:
             image_rgb = image
 
+        image = cv2.imread(image_path)
         print("Inference Results with OCR:")
         for detection in detection_result:
             print(detection)
@@ -149,28 +147,28 @@ class InferenceClient:
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (127, 0, 255, 2))
-
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    
             label = f"{detection['id']}. {detection['type']}"
             if detection['command']:
                 label += f" - {detection['command']}"
-
-            # Adjust the font type and size 
-            font = cv2.FONT_HERSHEY_TRIPLEX  
-            font_scale = 1.1  
-            font_color = (147, 117, 27)  
+    
+            # Adjust the font type and size for a friendlier look
+            font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
+            font_scale = 1.3  # Slightly larger font size for readability
+            font_color = (147, 117, 27)  # Light blue color in BGR
             font_thickness = 2
-
-             
+    
+            # Calculate the new position for the label to move it to the right of the box
             text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
-            text_x = x2 + 5  
-            text_y = y1 + text_size[1] + 15  
-
-            # Put text on the image 
-            cv2.putText(image_rgb, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
-
+            text_x = x2 + 5  # Move the text to the right of the bounding box
+            text_y = y1 + text_size[1] + 15  # Align text vertically with the top of the bounding box
+    
+            # Put text on the image with the updated font settings
+            cv2.putText(image, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
+    
         output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-        cv2.imwrite(output_image_path, image_rgb)
+        cv2.imwrite(output_image_path, image)
         return output_image_path
 
 @app.route('/')
