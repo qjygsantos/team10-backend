@@ -24,22 +24,20 @@ app = Flask(__name__)
 
 # Initialize Firebase Admin
 cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
-firebase_admin.initialize_app(cred,{'storageBucket': 'psykitz-891d8.appspot.com'})
+firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
 bucket = storage.bucket()
 
 # Define predefined commands and symbols
 predefined_commands = [
-    "move forward (slow)", "move forward (normal)", "move forward (fast)",
-    "move backward (slow)", "move backward (normal)", "move backward (fast)",
-    "turn left", "drive forward", "turn right", "spin", "make sound", "stop",
-    "turn on light", "turn off light", "wait for", "play sound", "repeat"
+    "move forward", "move backward", "turn left", "drive forward", "drive backward", "turn right", "spin",
+    "stop", "turn on light", "turn off light", "play sound", "repeat"
 ]
 
 predefined_conditions = [
     "if obstacle ahead", "if no obstacle", "if light detected", "if no light",
-    "start", "end"
+    "start", "end", "if touch sensor pressed"
 ]
 
 class InferenceClient:
@@ -82,6 +80,8 @@ class InferenceClient:
             x2 = x + width // 2
             y2 = y + height // 2
 
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
             roi = image[y1:y2, x1:x2]
             roi_filename = f'cropped_image_{idx}.jpg'
             roi_path = os.path.join('static/objects', roi_filename)
@@ -96,9 +96,10 @@ class InferenceClient:
             detection_with_ocr = {
                 'type': symbol_class.lower().replace("rotation", ""),
                 'coordinates': (x, y),
-                'text': matched_command if text != "No text detected" else "",
+                'text': text if text != "No text detected" else "",
                 'width': width,
                 'height': height,
+                'command': matched_command
             }
             detection_result.append(detection_with_ocr)
 
@@ -131,6 +132,34 @@ class InferenceClient:
         else:
             return None
 
+def print_result_with_ocr(self, detection_result, image_path):
+    image = cv2.imread(image_path)
+    print("Inference Results with OCR:")
+    for detection in detection_result:
+        print(detection)
+        x1 = int(detection["coordinates"][0] - detection["width"] // 2)
+        y1 = int(detection["coordinates"][1] - detection["height"] // 2)
+        x2 = int(detection["coordinates"][0] + detection["width"] // 2)
+        y2 = int(detection["coordinates"][1] + detection["height"] // 2)
+        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+        label = f"{detection['id']}. {detection['type']}"
+        if detection['command']:
+            label += f" - {detection['command']}"
+
+        # Adjust the font type and size for a friendlier look
+        font = cv2.FONT_HERSHEY_DUPLEX
+        font_scale = 1.0
+        font_color = (255, 0, 0)  # Blue color in BGR
+        font_thickness = 2
+
+        # Put text on the image with the updated font settings
+        cv2.putText(image, label, (x1, y1 - 10), font, font_scale, font_color, font_thickness)
+
+    output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
+    cv2.imwrite(output_image_path, image)
+    return output_image_path
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -153,14 +182,14 @@ def upload_image():
         OCR_CLIENT = InferenceClient(
             api_url="https://detect.roboflow.com",
             api_key="A6HQefLyBwFRsvEb8Adr",
-            model_id = "handwritten-flowchart-part-3/15"
+            model_id="handwritten-flowchart-part-3/15"
         )
         
         # Perform detection
         detection_result = OCR_CLIENT.detect_diagram(image_path)
 
         # Save the image with bounding boxes
-        output_image_path = draw_bounding_boxes(image_path, detection_result)
+        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, image_path)
 
         # Upload processed image to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
@@ -176,7 +205,7 @@ def upload_image():
         generated_code_blob = bucket.blob(f'detected_images/{os.path.basename(generated_code_path)}')
         generated_code_blob.upload_from_filename(generated_code_path)
         generated_code_url = ''
-        
+
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
         doc_ref.set({
@@ -194,33 +223,6 @@ def upload_image():
             "image_url": image_url,
             "generated_code_url": generated_code_url
         })
-
-def draw_bounding_boxes(image_path, detections):
-    # Load image
-    image = Image.open(image_path)
-    draw = ImageDraw.Draw(image)
-
-    font_size = 12
-    font = ImageFont.load_default()
-    
-    for detection in detections:
-        x, y = detection['coordinates']
-        width = detection['width']
-        height = detection['height']
-        box = [(x - width // 2, y - height // 2), (x + width // 2, y + height // 2)]
-
-        draw.rectangle(box, outline="red", width=2)
-
-        text = detection['text'] if detection['text'] else ''
-        symbol_type = detection['type']
-
-        text_to_draw = f"{symbol_type}: {text}"
-        text_position = (x - width // 2 - 10, y - height // 2)
-        draw.text(text_position, text_to_draw, font=font, fill="blue")
-            
-    output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-    image.save(output_image_path)
-    return output_image_path
 
 if __name__ == '__main__':
     app.run(debug=True)
