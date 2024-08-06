@@ -149,7 +149,7 @@ class InferenceClient:
     
             # Adjust the font type and size for a friendlier look
             font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 1.3  # Slightly larger font size for readability
+            font_scale = 1.8  # Slightly larger font size for readability
             font_color = (147, 117, 27)  # Light blue color in BGR
             font_thickness = 2
     
