@@ -167,7 +167,7 @@ class InferenceClient:
     
             # Ensure the text is within the image boundaries
             if text_x < 0:  # If text_x goes out of the image boundaries
-                text_x = x1 + width + offset  # Adjust to a visible position
+                text_x = x1 + text_width + offset  # Adjust to a visible position
     
             # Put text on the image with the updated font settings
             cv2.putText(image, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
