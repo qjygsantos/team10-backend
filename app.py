@@ -149,13 +149,13 @@ class InferenceClient:
     
             # Adjust the font type and size for a friendlier look
             font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 2  # Slightly larger font size for readability
+            font_scale = 3  # Slightly larger font size for readability
             font_color = (192, 15, 252)  # Light blue color in BGR
             font_thickness = 2
     
             # Calculate the new position for the label to move it to the right of the box
             text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
-            text_x = x2 + 5  # Move the text to the right of the bounding box
+            text_x = x2 + 1  # Move the text to the right of the bounding box
             text_y = y1 + text_size[1] + 15  # Align text vertically with the top of the bounding box
     
             # Put text on the image with the updated font settings
