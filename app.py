@@ -157,9 +157,7 @@ class InferenceClient:
             text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
             text_width = text_size[0]
     
-            # Set the horizontal offset to position the text to the left of the bounding box
-            offset = 3  # Distance from the bounding box
-            text_x = x1 - text_width - offset  # Move the text to the left of the bounding box
+            text_x = x1 - text_width  # Move the text to the left of the bounding box
             text_y = y1 + text_size[1] + 15 
     
             # Put text on the image with the updated font settings
