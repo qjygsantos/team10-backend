@@ -158,7 +158,7 @@ class InferenceClient:
             text_width = text_size[0]
     
             # Set the horizontal offset to position the text to the left of the bounding box
-            offset = 10  # Distance from the bounding box
+            offset = 5  # Distance from the bounding box
             text_x = x1 - text_width - offset  # Move the text to the left of the bounding box
             text_y = y1 + text_size[1] + 15 
     
