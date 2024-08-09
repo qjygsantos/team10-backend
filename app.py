@@ -154,12 +154,14 @@ class InferenceClient:
             font_thickness = 2
     
             # Calculate the text size
+
+
+            # Calculate the new position for the label to move it to the right of the box
             text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
             text_width = text_size[0]
-    
-            text_x = x1 - text_width  # Move the text to the left of the bounding box
-            text_y = y1 + text_size[1] + 15 
-    
+            text_x = x2 - 1  # Move the text to the right of the bounding box
+            text_y = y1 + text_size[1] + 15  # Align text vertically with the top of the bounding box
+        
             # Put text on the image with the updated font settings
             cv2.putText(image, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
     
