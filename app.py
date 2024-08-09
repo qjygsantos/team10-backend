@@ -149,8 +149,8 @@ class InferenceClient:
     
             # Adjust the font type and size for a friendlier look
             font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 1.5  # Slightly larger font size for readability
-            font_color = (147, 117, 27)  # Light blue color in BGR
+            font_scale = 2  # Slightly larger font size for readability
+            font_color = (192, 15, 252)  # Light blue color in BGR
             font_thickness = 2
     
             # Calculate the new position for the label to move it to the right of the box
