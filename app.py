@@ -128,7 +128,10 @@ class InferenceClient:
         for i in range(1, len(filtered_results)):
             if filtered_results[i]['type'] == 'arrow' and filtered_results[i-1]['type'] == 'arrowhead':
                   filtered_results[i], filtered_results[i-1] = filtered_results[i-1], filtered_results[i]
-
+                
+            if filtered_results[i]['type'] == 'arrowhead' and filtered_results[i-1]['type'] == 'decision':
+                  filtered_results[i], filtered_results[i-1] = filtered_results[i-1], filtered_results[i]
+                
         for idx, detection in enumerate(filtered_results):
             # Assign ID
             detection["id"] = idx + 1
@@ -162,7 +165,7 @@ class InferenceClient:
         image_height, image_width = image.shape[:2]
 
         #base scale for font
-        base_scale = 0.0011  
+        base_scale = 0.00075  
 
         print("Inference Results with OCR:")
         for detection in detection_result:
@@ -182,7 +185,7 @@ class InferenceClient:
             thickness = max(1, int(font_scale * 2))  # Adjust thickness based on font scale
 
             # Draw text on the image
-            cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (192, 15, 252), thickness)
+            cv2.putText(image, label, (x, y), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (192, 15, 252), thickness)
 
         output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
         cv2.imwrite(output_image_path, image)
