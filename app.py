@@ -31,13 +31,16 @@ bucket = storage.bucket()
 
 # Define predefined commands and symbols
 predefined_commands = [
-    "move forward", "move backward", "turn left", "drive forward", "drive backward", "turn right", "spin",
-    "stop", "turn on light", "turn off light", "play sound", "repeat"
+    "move forward (5)", "move forward", "move forward (2)",
+    "move backward (5)", "move backward", "move backward (2)",
+    "turn left", "turn left (2)", "turn left (5)", "turn right",
+    "turn right (2)", "turn left (5)", "turn 180", "stop", "drive forward",
+    "turn on light", "turn off light", "play sound", "reverse"
 ]
 
 predefined_conditions = [
-    "if obstacle ahead", "if no obstacle", "if light detected", "if no light",
-    "start", "end", "if touch sensor pressed"
+    "if obstacle detected", "if line detected", "if no light",
+    "start", "end"
 ]
 
 class InferenceClient:
@@ -61,12 +64,15 @@ class InferenceClient:
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.5)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.5, iou_threshold=0.5)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
 
         detection_result = []
+        boxes = []
+        confidences = []
+        
         for idx, prediction in enumerate(detection_result_objects["predictions"]):
             x = int(prediction["x"])
             y = int(prediction["y"])
@@ -80,8 +86,6 @@ class InferenceClient:
             x2 = x + width // 2
             y2 = y + height // 2
 
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
             roi = image[y1:y2, x1:x2]
             roi_filename = f'cropped_image_{idx}.jpg'
             roi_path = os.path.join('static/objects', roi_filename)
@@ -92,23 +96,44 @@ class InferenceClient:
             matched_command = None
             if text != "No text detected" and symbol_class.lower() not in ['arrow', 'arrowhead']:
                 matched_command = self.match_text_with_commands(text)
+                
+            # Store bounding boxes and confidences before applying NMS
+            boxes.append([x1, y1, width, height])
+            confidences.append(confidence)
 
+            pos = y2 if symbol_class.lower().replace("rotation", "") != 'decision' else y1
+            
             detection_with_ocr = {
                 'type': symbol_class.lower().replace("rotation", ""),
                 'coordinates': (x, y),
-                'text': text if text != "No text detected" else "",
+                'command': matched_command if text != "No text detected" else "",
                 'width': width,
                 'height': height,
-                'command': matched_command
+                'pos': pos
             }
             detection_result.append(detection_with_ocr)
+        # Apply NMS 
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.5)
 
-        detection_result.sort(key=lambda x: x["coordinates"][1])
+        # Make sure indices are correct
+        if len(indices) > 0:
+            indices = indices.flatten()
+            filtered_results = [detection_result[i] for i in indices]
+        else:
+            filtered_results = detection_result
+        
+        #sort results   
+        filtered_results.sort(key=lambda x: x["pos"])
+        
+        for i in range(1, len(filtered_results)):
+            if filtered_results[i]['type'] == 'arrow' and filtered_results[i-1]['type'] == 'arrowhead':
+                  filtered_results[i], filtered_results[i-1] = filtered_results[i-1], filtered_results[i]
 
-        for idx, detection in enumerate(detection_result):
-            detection['id'] = idx + 1
+        for idx, detection in enumerate(filtered_results):
+            # Assign ID
+            detection["id"] = idx + 1
 
-        return detection_result
+        return filtered_results
 
     def perform_ocr(self, output_image_path):
         return self.detect_handwriting(output_image_path)
@@ -134,6 +159,11 @@ class InferenceClient:
 
     def print_result_with_ocr(self, detection_result, image_path):
         image = cv2.imread(image_path)
+        image_height, image_width = image.shape[:2]
+
+        #base scale for font
+        base_scale = 0.0011  
+
         print("Inference Results with OCR:")
         for detection in detection_result:
             print(detection)
@@ -145,22 +175,15 @@ class InferenceClient:
     
             label = f"{detection['id']}. {detection['type']}"
             if detection['command']:
-                label += f" - {detection['command']}"
-    
-            # Adjust the font type and size for a friendlier look
-            font = cv2.FONT_HERSHEY_TRIPLEX  # Simplex is clear and readable
-            font_scale = 3  # Slightly larger font size for readability
-            font_color = (192, 15, 252)  # Light blue color in BGR
-            font_thickness = 2
-    
-            # Calculate the new position for the label to move it to the right of the box
-            text_size = cv2.getTextSize(label, font, font_scale, font_thickness)[0]
-            text_x = x2 + 5  # Move the text to the right of the bounding box
-            text_y = y1 + text_size[1] + 15  # Align text vertically with the top of the bounding box
-    
-            # Put text on the image with the updated font settings
-            cv2.putText(image, label, (text_x, text_y), font, font_scale, font_color, font_thickness)
-    
+                label += f" ({detection['command']})"
+
+            # Calculate font scale based on image dimensions
+            font_scale = base_scale * max(image_width, image_height)
+            thickness = max(1, int(font_scale * 2))  # Adjust thickness based on font scale
+
+            # Draw text on the image
+            cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (192, 15, 252), thickness)
+
         output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
         cv2.imwrite(output_image_path, image)
         return output_image_path
