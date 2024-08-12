@@ -170,10 +170,19 @@ class InferenceClient:
         print("Inference Results with OCR:")
         for detection in detection_result:
             print(detection)
+               
             x1 = int(detection["coordinates"][0] - detection["width"] // 2)
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
+
+            if detection["type"] == "arrow":
+                x = x1
+                y = y1
+            else:
+                x = detection["coordinates"][0]
+                y = detection["coordinates"][1]
+            
             cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
     
             label = f"{detection['id']}. {detection['type']}"
