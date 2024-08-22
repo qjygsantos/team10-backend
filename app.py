@@ -33,16 +33,25 @@ bucket = storage.bucket()
 
 # Define predefined commands and symbols
 predefined_commands = [
-    "move forward (5)", "move forward", "move forward (2)",
-    "move backward (5)", "move backward", "move backward (2)",
-    "turn left", "turn left (2)", "turn left (5)", "turn right",
-    "turn right (2)", "turn left (5)", "turn 180", "stop", "drive forward",
-    "turn on light", "turn off light", "play sound", "reverse", "start", "end"
+    "move forward", "move forward two times", "move forward three times", "move forward four times", "move forward five times",
+    "move forward six times", "move forward seven times", "move forward eight times", "move forward nine times", "move forward ten times",
+    "move backward", "move backward two times", "move backward three times", "move backward four times", "move backward five times",
+    "move backward six times", "move backward seven times", "move backward eight times", "move backward nine times", "move backward ten times",
+    "turn left", "turn left two times", "turn left three times", "turn left four times", "turn left five times",
+    "turn left six times", "turn left seven times", "turn left eight times", "turn left nine times", "turn left ten times",
+    "turn right", "turn right two times", "turn right three times", "turn right four times", "turn right five times",
+    "turn right six times", "turn right seven times", "turn right eight times", "turn right nine times", "turn right ten times",
+    "turn 180", "stop", "drive forward", "turn on light", "turn off light", "play sound", "reverse", "start", "end",
+    "delay one second", "delay two seconds", "delay three seconds", "delay four seconds", "delay five seconds",
+    "delay six seconds", "delay seven seconds", "delay eight seconds", "delay nine seconds", "delay ten seconds"
 ]
 
+
 predefined_conditions = [
-    "obstacle not detected", "line not detected", "touch sensor not pressed", "if i <= 2", "if i <= 3", "if i <= 5", "if i <= 10"
+    "obstacle not detected", "line not detected", "touch sensor not pressed", 
+    "i <= 1", "i <= 2", "i <= 3", "i <= 4", "i <= 5", "i <= 6", "i <= 7", "i <= 8", "i <= 9", "i <= 10"
 ]
+
 
 class InferenceClient:
     def __init__(self, api_url, api_key, model_id):
@@ -160,7 +169,7 @@ class InferenceClient:
 
             #FOR LOOP Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'] in ["if i <= 2", "if i <= 3", "if i <= 5", "if i <= 10"]:
+            filtered_results[i]['command'] in ["i <= 1", "i <= 2", "i <= 3", "i <= 4", "i <= 5", "i <= 6", "i <= 7", "i <= 8", "i <= 9", "i <= 10"]:
                 #find the next arrow element with width > 100
                 j = i + 1
                 n = len(filtered_results)
@@ -263,16 +272,25 @@ def convert_to_pseudocode(detections):
         "obstacle not detected": "Obstacle Not Detected",
         "line not detected": "Line Not Detected",
         "touch sensor not pressed": "Touch Sensor Not Pressed",
-        "if i <= 2": "i FROM 1 TO 2",
-        "if i <= 3": "i FROM 1 TO 3",
-        "if i <= 5": "i FROM 1 TO 5",
-        "if i <= 10": "i FROM 1 TO 10"
+        "i <= 1": "i FROM 1 TO 1",
+        "i <= 2": "i FROM 1 TO 2",
+        "i <= 3": "i FROM 1 TO 3",
+        "i <= 4": "i FROM 1 TO 4",
+        "i <= 5": "i FROM 1 TO 5",
+        "i <= 6": "i FROM 1 TO 6",
+        "i <= 7": "i FROM 1 TO 7",
+        "i <= 8": "i FROM 1 TO 8",
+        "i <= 9": "i FROM 1 TO 9",
+        "i <= 10": "i FROM 1 TO 10"
     }
+
+    def capitalize_words(text):
+        return ' '.join(word.capitalize() for word in text.split())
 
     while i < n and not end_detected:
         element = detections[i]
 
-        #terminator symbols
+        # Terminator symbols
         if element['type'] == 'terminator':
             if element['command'] == 'start':
                 pseudocode.append("BEGIN")
@@ -280,94 +298,93 @@ def convert_to_pseudocode(detections):
                 pseudocode.append("END")
                 end_detected = True  # Mark END
 
-        #process symbols
+        # Process symbols
         elif element['type'] == 'process':
-            command = element['command'].capitalize()
+            command = capitalize_words(element['command'])
 
-            # find the next non-arrow element
+            # Find the next non-arrow element
             j = i + 1
             while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                 j += 1
 
-            # if next symbol is decision with arrow connected in it of > 100 width - DO WHILE LOOP
+            # If the next symbol is a decision with an arrow connected and height >= 300 - DO WHILE LOOP
             if j < n and detections[j]['type'] == 'decision' and \
             j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
             detections[j + 1]['height'] >= 300:
 
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
-                pseudocode.append(f"    {' '.join([word.capitalize() for word in command.split()])}")
+                pseudocode.append(f"    {command}")
                 pseudocode.append(f"    WHILE {decision_command}")
                 pseudocode.append(f"        {command}")
                 pseudocode.append("    END WHILE")
                 i = j  # Skip ahead to after the decision block
 
-            #if next symbol is decision with arrow connected in it of < 100 width - WHILE LOOP
+            # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
             j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
             detections[j + 1]['height'] < 300:
 
-                #find the next non-arrow element
-                pseudocode.append(f"    {' '.join([word.capitalize() for word in command.split()])}")
+                # Find the next non-arrow element
+                pseudocode.append(f"    {command}")
                 j = i + 1
                 while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
 
-                #if next symbol is process - WHILE
+                # If the next symbol is a process - WHILE
                 if j < n and detections[j]['type'] == 'process':
-                    command = detections[j]['command'].capitalize()
-                    decision_command =  decision_mapping.get(element['command'].lower(), "Unknown Condition")
+                    command = capitalize_words(detections[j]['command'])
+                    decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
                     pseudocode.append(f"    WHILE {decision_command}")
                     pseudocode.append(f"        {command}")
                     pseudocode.append("    END WHILE")
                     i = j  # Skip ahead to after the decision block
 
             else:
-                pseudocode.append(f"    {' '.join([word.capitalize() for word in command.split()])}")
+                pseudocode.append(f"    {command}")
 
-
-        #decision symbols (nested decision not yet implemented)
+        # Decision symbols (nested decision not yet implemented)
         elif element['type'] == 'decision' and \
-        element['command'] in ["if i <= 2", "if i <= 3", "if i <= 5", "if i <= 10"]:
+        element['command'] in ["i <= 1", "i <= 2", "i <= 3", "i <= 4", "i <= 5", "i <= 6", "i <= 7", "i <= 8", "i <= 9", "i <= 10"]:
 
             j = i + 1
-            decision_command =  decision_mapping.get(element['command'].lower(), "Unknown Condition")
+            decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
             pseudocode.append(f"    FOR {decision_command}")
 
-            #find the next non-arrow element while finding arrow of > 100 width
+            # Find the next non-arrow element while finding arrow of > 100 width
             while j < n and (detections[j]['type'] != 'arrow' or detections[j]['height'] <= 300):
                 if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
-                    command = detections[j]['command'].capitalize()
+                    command = capitalize_words(detections[j]['command'])
                     pseudocode.append(f"        {command}")
                     j += 1
 
             j += 2
-            command = detections[j]['command'].capitalize()
+            command = capitalize_words(detections[j]['command'])
             pseudocode.append(f"        {command}")
             pseudocode.append("    END FOR")
 
             i = j  # Skip to after the decision block
 
-
         elif element['type'] == 'decision' and \
-        element['command'] in ["obstacle not detected", "line not detected","touch sensor not pressed"]:
+        element['command'] in ["obstacle not detected", "line not detected", "touch sensor not pressed"]:
 
-            #find  next non-arrow element
+            # Find next non-arrow element
             j = i + 1
             while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                 j += 1
 
-            #if next symbol is process - WHILE
+            # If next symbol is process - WHILE
             if j < n and detections[j]['type'] == 'process':
-                command = detections[j]['command'].capitalize()
-                decision_command =  decision_mapping.get(element['command'].lower(), "Unknown Condition")
+                command = capitalize_words(detections[j]['command'])
+                decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
                 pseudocode.append(f"    WHILE {decision_command}")
                 pseudocode.append(f"        {command}")
                 pseudocode.append("    END WHILE")
-                i = j  # Skip ahead to after decision block
+                i = j  # Skip ahead to after the decision block
             else:
-                pseudocode.append(f"    {' '.join([word.capitalize() for word in command.split()])}")
+                pseudocode.append(f"    {capitalize_words(element['command'])}")
+
         i += 1
 
     # END will be added if not detected
@@ -377,32 +394,74 @@ def convert_to_pseudocode(detections):
     return "\n".join(pseudocode)
 
 
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
-        "Move Forward Five Seconds": "F,5",
+        "Move Forward Five Times": "F,5",
         "Move Forward": "F",
-        "Move Forward Two Seconds": "F,2",
-        "Move Backward Five Seconds": "B,5",
+        "Move Forward Two Times": "F,2",
+        "Move Forward Three Times": "F,3",
+        "Move Forward Four Times": "F,4",
+        "Move Forward Five Times": "F,5",
+        "Move Forward Six Times": "F,6",
+        "Move Forward Seven Times": "F,7",
+        "Move Forward Eight Times": "F,8",
+        "Move Forward Nine Times": "F,9",
+        "Move Forward Ten Times": "F,10",
+        "Move Backward Five Times": "B,5",
         "Move Backward": "B",
-        "Move Backward Two Seconds": "B,2",
+        "Move Backward Two Times": "B,2",
+        "Move Backward Three Times": "B,3",
+        "Move Backward Four Times": "B,4",
+        "Move Backward Five Times": "B,5",
+        "Move Backward Six Times": "B,6",
+        "Move Backward Seven Times": "B,7",
+        "Move Backward Eight Times": "B,8",
+        "Move Backward Nine Times": "B,9",
+        "Move Backward Ten Times": "B,10",
         "Turn Left": "L",
         "Turn Left Two Times": "L,2",
+        "Turn Left Three Times": "L,3",
+        "Turn Left Four Times": "L,4",
         "Turn Left Five Times": "L,5",
+        "Turn Left Six Times": "L,6",
+        "Turn Left Seven Times": "L,7",
+        "Turn Left Eight Times": "L,8",
+        "Turn Left Nine Times": "L,9",
+        "Turn Left Ten Times": "L,10",
         "Turn Right": "R",
         "Turn Right Two Times": "R,2",
+        "Turn Right Three Times": "R,3",
+        "Turn Right Four Times": "R,4",
         "Turn Right Five Times": "R,5",
+        "Turn Right Six Times": "R,6",
+        "Turn Right Seven Times": "R,7",
+        "Turn Right Eight Times": "R,8",
+        "Turn Right Nine Times": "R,9",
+        "Turn Right Ten Times": "R,10",
         "Turn 180": "T,180",
         "Turn 360": "T,360",
+        "Delay One Second": "D,1",
         "Delay Two Seconds": "D,2",
+        "Delay Three Seconds": "D,3",
+        "Delay Four Seconds": "D,4",
         "Delay Five Seconds": "D,5",
-        "Delay": "D",
+        "Delay Six Seconds": "D,6",
+        "Delay Seven Seconds": "D,7",
+        "Delay Eight Seconds": "D,8",
+        "Delay Nine Seconds": "D,9",
+        "Delay Ten Seconds": "D,10",
         "Turn on Light": "on",
         "Turn off Light": "off",
         "Play Sound": "S",
+        "Reverse": "R",
+        "Start": "S",
+        "End": "E",
         "Obstacle Not Detected": "obs",
         "Line Not Detected": "line",
         "Touch Sensor Not Pressed": "touch"
     }
+
 
     commands = []
     loop_stack = []
@@ -451,7 +510,6 @@ def translate_pseudocode(pseudocode):
             if command:
                 commands.append(command)
     return ''.join(commands)
-
 
 
 @app.route('/')
