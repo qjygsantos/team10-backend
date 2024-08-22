@@ -534,7 +534,7 @@ def upload_image():
         return jsonify({
             "message": "File processed successfully",
             "image_url": image_url,
-            "pseudocode_url": pseudocode_url
+            "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
         })
 
