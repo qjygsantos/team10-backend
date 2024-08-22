@@ -567,21 +567,22 @@ def upload_image():
         blob.upload_from_filename(output_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
-        # Save JSON results
-        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.json')
+        # Save Pseudocode to Text File
+        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
-            json.dump(pseudocode_result, pseudocode_file, indent=4)
+            pseudocode_file.write(pseudocode_result)
 
         # Upload JSON to Firebase Storage
         pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
         pseudocode_blob.upload_from_filename(pseudocode_path)
-        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7)
 
         # Save URLs to Firestore
         doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
         doc_ref.set({
             'image_url': image_url,
-            'pseudocode_url': pseudocode_url
+            'pseudocode_url': pseudocode_url,
+            'arduino_commands' : arduino_commands
         })
 
         # Clean up temporary files
@@ -590,7 +591,6 @@ def upload_image():
         os.remove(pseudocode_path)
 
         return jsonify({
-            "message": "File processed successfully",
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
