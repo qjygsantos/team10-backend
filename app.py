@@ -247,9 +247,9 @@ class InferenceClient:
                 # Draw text on the image
                 cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
 
-        output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-        cv2.imwrite(output_image_path, image)
-        return output_image_path
+            output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
+            cv2.imwrite(output_image_path, image)
+            return output_image_path
 
 
 def convert_to_pseudocode(detections):
