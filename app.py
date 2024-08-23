@@ -395,6 +395,7 @@ def convert_to_pseudocode(detections):
 
 
 
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "Move Forward Five Times": "F,5",
@@ -402,7 +403,6 @@ def translate_pseudocode(pseudocode):
         "Move Forward Two Times": "F,2",
         "Move Forward Three Times": "F,3",
         "Move Forward Four Times": "F,4",
-        "Move Forward Five Times": "F,5",
         "Move Forward Six Times": "F,6",
         "Move Forward Seven Times": "F,7",
         "Move Forward Eight Times": "F,8",
@@ -413,7 +413,6 @@ def translate_pseudocode(pseudocode):
         "Move Backward Two Times": "B,2",
         "Move Backward Three Times": "B,3",
         "Move Backward Four Times": "B,4",
-        "Move Backward Five Times": "B,5",
         "Move Backward Six Times": "B,6",
         "Move Backward Seven Times": "B,7",
         "Move Backward Eight Times": "B,8",
@@ -462,31 +461,28 @@ def translate_pseudocode(pseudocode):
         "Touch Sensor Not Pressed": "touch"
     }
 
-
     commands = []
     loop_stack = []
 
     def parse_command(line):
         line = line.strip()
-        for key, value in command_mapping.items():
-            if line.startswith(key):
-                return f"<{value}>"
-        return None
+        # Check for exact matches
+        return f"<{command_mapping.get(line, line)}>" if line in command_mapping else None
 
     def format_condition(condition):
-        formatted_condition = condition.strip().replace(":", "").replace(" ", "_").lower()
-        return command_mapping.get(condition, formatted_condition)
+        # Use the command_mapping to get the formatted condition
+        formatted_condition = command_mapping.get(condition.strip(), condition.strip())
+        return formatted_condition.lower().replace(" ", "_")
 
     for line in pseudocode.split('\n'):
         line = line.strip()
 
         if line.startswith("BEGIN") or line == "":
-            continue  # Skip BEGIN
+            continue  # Skip BEGIN and empty lines
 
         elif line.startswith("FOR"):
             loop_stack.append(line)
             _, condition = line.split(' ', 1)
-            #  loop count
             if "TO" in condition:
                 _, to_part = condition.split("TO")
                 loop_count = to_part.strip()
@@ -500,16 +496,23 @@ def translate_pseudocode(pseudocode):
             formatted_condition = format_condition(condition)
             commands.append(f"<while,{formatted_condition}>")
 
-        elif line.startswith("END FOR") or line.startswith("END WHILE"):
+        elif line.startswith("END FOR"):
             if loop_stack:
                 loop_stack.pop()
-                commands.append("<end>")
+                commands.append("<endfor>")
+
+        elif line.startswith("END WHILE"):
+            if loop_stack:
+                loop_stack.pop()
+                commands.append("<endwhile>")
 
         else:
             command = parse_command(line)
             if command:
                 commands.append(command)
+
     return ''.join(commands)
+
 
 
 @app.route('/')
@@ -554,47 +557,53 @@ def upload_image():
         # Perform detection
         detection_result = OCR_CLIENT.detect_diagram(processed_image_path)
 
-        # Convert to Pseudocode
-        pseudocode_result = convert_to_pseudocode(detection_result)
+        # Check if the image contains a flowchart by ensuring there are at least 3 object detections
+        if len(detection_result) < 3:
+            return jsonify({"error": "There's a problem with the image input. Please try again."}), 400
 
-        arduino_commands = translate_pseudocode(pseudocode_result)
+        else:
+            # Convert to Pseudocode
+            pseudocode_result = convert_to_pseudocode(detection_result)
+    
+            arduino_commands = translate_pseudocode(pseudocode_result)
+    
+            # Save the image with detections
+            output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
+    
+            # Upload image with detections to Firebase Storage
+            blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+            blob.upload_from_filename(output_image_path)
+            image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+    
+            # Save Pseudocode to Text File
+            pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
+            with open(pseudocode_path, 'w') as pseudocode_file:
+                pseudocode_file.write(pseudocode_result)
+    
+            # Upload JSON to Firebase Storage
+            pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
+            pseudocode_blob.upload_from_filename(pseudocode_path)
+            pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+    
+            # Save URLs to Firestore
+            doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
+            doc_ref.set({
+                'image_url': image_url,
+                'pseudocode_url': pseudocode_url,
+                'arduino_commands' : arduino_commands
+            })
+    
+            # Clean up temporary files
+            os.remove(image_path)
+            os.remove(output_image_path)
+            os.remove(pseudocode_path)
+    
+            return jsonify({
+                "image_url": image_url,
+                "pseudocode_url": pseudocode_url,
+                "arduino_commands": arduino_commands
+            })
 
-        # Save the image with detections
-        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
-
-        # Upload image with detections to Firebase Storage
-        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-        blob.upload_from_filename(output_image_path)
-        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-
-        # Save Pseudocode to Text File
-        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
-        with open(pseudocode_path, 'w') as pseudocode_file:
-            pseudocode_file.write(pseudocode_result)
-
-        # Upload JSON to Firebase Storage
-        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
-        pseudocode_blob.upload_from_filename(pseudocode_path)
-        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-
-        # Save URLs to Firestore
-        doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
-        doc_ref.set({
-            'image_url': image_url,
-            'pseudocode_url': pseudocode_url,
-            'arduino_commands' : arduino_commands
-        })
-
-        # Clean up temporary files
-        os.remove(image_path)
-        os.remove(output_image_path)
-        os.remove(pseudocode_path)
-
-        return jsonify({
-            "image_url": image_url,
-            "pseudocode_url": pseudocode_url,
-            "arduino_commands": arduino_commands
-        })
 
 if __name__ == '__main__':
     app.run(debug=True)
