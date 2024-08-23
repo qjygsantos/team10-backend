@@ -565,20 +565,21 @@ def upload_image():
         command_none_count = 0
 
         for detection in detection_result:
-            label = detection['label'].lower()
-            command = detection.get('command', None)
-
-            if 'terminator' in label:
-                num_terminators += 1
-            elif 'arrow' in label:
-                num_arrows += 1
-            elif 'arrowhead' in label:
-                num_arrowheads += 1
-            else:
-                # Count command symbols
+            label = detection['type']
+            command = detection['command']
+            
+            if label not in ['arrow', 'arrowhead', 'terminator']:
                 command_symbols += 1
-                if command is None:
-                    command_none_count += 1
+            if command is None:
+                command_none_count += 1
+                
+            if label == 'terminator':
+                num_terminators += 1
+            elif label == 'arrow':
+                num_arrows += 1
+            elif label == 'arrowhead':
+                num_arrowheads += 1
+
 
         # Check the conditions
         if (
