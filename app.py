@@ -570,8 +570,8 @@ def upload_image():
             
             if label not in ['arrow', 'arrowhead', 'terminator']:
                 command_symbols += 1
-            if command is None:
-                command_none_count += 1
+                if command is None:
+                    command_none_count += 1
                 
             if label == 'terminator':
                 num_terminators += 1
