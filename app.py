@@ -205,7 +205,7 @@ class InferenceClient:
             if condition in normalized_text:
                 return condition
 
-        closest_match = difflib.get_close_matches(normalized_text, predefined_commands + predefined_conditions, n=1, cutoff=0.2)
+        closest_match = difflib.get_close_matches(normalized_text, predefined_commands + predefined_conditions, n=1, cutoff=0.3)
         if closest_match:
             return closest_match[0]
         else:
@@ -522,11 +522,11 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        return jsonify({'error': "No file part"}), 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({'error': "No selected file"}), 400
     
     if file:
         # Save the uploaded image to a temporary path
@@ -558,8 +558,46 @@ def upload_image():
         detection_result = OCR_CLIENT.detect_diagram(processed_image_path)
 
         # Check if the image contains a flowchart by ensuring there are at least 3 object detections
-        if len(detection_result) < 3:
-            return jsonify({"error": "There's a problem with the image input. Please try again."}), 400
+        num_terminators = 0
+        num_arrows = 0
+        num_arrowheads = 0
+        command_symbols = 0
+        command_none_count = 0
+
+        for detection in detection_result:
+            label = detection['label'].lower()
+            command = detection.get('command', None)
+
+            if 'terminator' in label:
+                num_terminators += 1
+            elif 'arrow' in label:
+                num_arrows += 1
+            elif 'arrowhead' in label:
+                num_arrowheads += 1
+            else:
+                # Count command symbols
+                command_symbols += 1
+                if command is None:
+                    command_none_count += 1
+
+        # Check the conditions
+        if (
+            len(detection_result) < 3 or 
+            num_terminators < 1 or 
+            num_arrows < 1 or 
+            num_arrowheads < 1 or 
+            (command_symbols > 0 and command_none_count >= command_symbols / 2)
+        ):
+            output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
+            
+            blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+            blob.upload_from_filename(output_image_path)
+            image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+            
+            return jsonify({
+                'error': "There's a problem with the image input. Please try again.",
+                'image_url': image_url
+            }), 400
 
         else:
             # Convert to Pseudocode
