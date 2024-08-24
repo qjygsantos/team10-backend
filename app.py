@@ -522,11 +522,14 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'file' not in request.files:
-        return jsonify({'error': "No file part"}), 400
+        return jsonify({"status": "Failed",
+                        "message": "No file part",
+                       }), 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': "No selected file"}), 400
+        return jsonify({"status": "Failed",
+                        "message": "No selected file"}), 400
     
     if file:
         # Save the uploaded image to a temporary path
@@ -596,7 +599,8 @@ def upload_image():
             image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
             
             return jsonify({
-                'error': "There's a problem with the image input. Please try again.",
+                "status": "Failed",
+                'message': "There's a problem with the image input. Please try again.",
                 'image_url': image_url
             }), 400
 
@@ -638,6 +642,7 @@ def upload_image():
             os.remove(pseudocode_path)
     
             return jsonify({
+                "status": "Success",
                 "image_url": image_url,
                 "pseudocode_url": pseudocode_url,
                 "arduino_commands": arduino_commands
