@@ -112,7 +112,7 @@ class InferenceClient:
             confidences.append(confidence)
 
             if symbol_class.lower().replace("rotation", "") == 'decision':
-                pos = y1 + 10
+                pos = y1 + 15
 
             elif symbol_class.lower().replace("rotation", "") == 'arrow':
                 pos = y2 - 10
