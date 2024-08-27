@@ -552,10 +552,16 @@ def upload_image():
         # Apply Gaussian adaptive thresholding
         T = threshold_local(warped, block_size=65, offset=33, method="gaussian")
         warped = (warped > T).astype("uint8") * 255
+
+        contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        largest_contour = max(contours, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        cropped_image = warped[y:y+h, x:x+w]
+
         
         # Save the processed image
         processed_image_path = "static/objects/processed_image.jpg"
-        cv2.imwrite(processed_image_path, warped)
+        cv2.imwrite(processed_image_path, cropped_image)
         
         # Perform detection
         detection_result = OCR_CLIENT.detect_diagram(processed_image_path)
