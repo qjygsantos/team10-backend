@@ -176,7 +176,7 @@ class InferenceClient:
                 #find the next arrow element with width > 100
                 j = i + 1
                 n = len(filtered_results)
-                while j < n and (filtered_results[j]['type'] != 'arrow' or filtered_results[j]['height'] <= 300):
+                while j < n and (filtered_results[j]['type'] != 'arrow' or filtered_results[j]['height'] <= 400):
                     j += 1
                 # Remove the second arrowhead
                 removed_arrowhead = filtered_results.pop(i + 1)
@@ -317,7 +317,7 @@ def convert_to_pseudocode(detections):
             # If the next symbol is a decision with an arrow connected and height >= 300 - DO WHILE LOOP
             if j < n and detections[j]['type'] == 'decision' and \
             j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
-            detections[j + 1]['height'] >= 300:
+            detections[j + 1]['height'] >= 400:
 
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
                 pseudocode.append(f"    {command}")
@@ -329,7 +329,7 @@ def convert_to_pseudocode(detections):
             # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
             j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
-            detections[j + 1]['height'] < 300:
+            detections[j + 1]['height'] < 400:
 
                 # Find the next non-arrow element
                 pseudocode.append(f"    {command}")
@@ -358,7 +358,7 @@ def convert_to_pseudocode(detections):
             pseudocode.append(f"    FOR {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and (detections[j]['type'] != 'arrow' or detections[j]['height'] <= 300):
+            while j < n and (detections[j]['type'] != 'arrow' or detections[j]['height'] <= 400):
                 if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
