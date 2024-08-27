@@ -103,7 +103,7 @@ class InferenceClient:
             text = self.perform_ocr(roi_path)
 
             matched_command = None
-            if text != "No text detected" and symbol_class.lower() not in ['arrow', 'arrowhead']:
+            if symbol_class.lower() not in ['arrow', 'arrowhead']:
                 matched_command = self.match_text_with_commands(text)
                 
             # Store bounding boxes and confidences before applying NMS
@@ -193,23 +193,27 @@ class InferenceClient:
 
     def match_text_with_commands(self, text):
         normalized_text = text.strip().lower()
-        
+
         if normalized_text == "no text detected":
             return None
 
-        for command in predefined_commands:
-            if command in normalized_text:
-                return command
+        # Combine predefined commands and conditions
+        all_predefined = predefined_commands + predefined_conditions
 
-        for condition in predefined_conditions:
-            if condition in normalized_text:
-                return condition
+        # Initialize variables to track the best match and highest ratio
+        best_match = None
+        highest_ratio = 0
 
-        closest_match = difflib.get_close_matches(normalized_text, predefined_commands + predefined_conditions, n=1, cutoff=0.3)
-        if closest_match:
-            return closest_match[0]
-        else:
-            return None
+        # Iterate through all predefined strings
+        for predefined in all_predefined:
+            ratio = SM(None, normalized_text, predefined).ratio()
+
+            if ratio > highest_ratio:
+                highest_ratio = ratio
+                best_match = predefined
+
+        # Return the best match if the ratio is above a certain threshold, else None
+        return best_match if highest_ratio >= 0.35 else normalized_text
 
     def print_result_with_ocr(self, detection_result, image_path):
             image = cv2.imread(image_path)
