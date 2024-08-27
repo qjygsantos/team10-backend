@@ -8,6 +8,7 @@ from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont
 import difflib
 from difflib import get_close_matches
+from difflib import SequenceMatcher as SM
 from skimage.filters import threshold_local
 import datetime
 import firebase_admin
