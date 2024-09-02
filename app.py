@@ -21,7 +21,7 @@ for directory in ['static/objects', 'static/detected_images']:
         os.makedirs(directory)
 
 # Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/content/drive/MyDrive/flowchart/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
 
 app = Flask(__name__)
 
