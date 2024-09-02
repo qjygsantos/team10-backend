@@ -95,7 +95,7 @@ class InferenceClient:
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.4, iou_threshold=0.6)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.6, iou_threshold=0.4)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
@@ -168,7 +168,7 @@ class InferenceClient:
                   detection_result[arrow_idx]['elbow_top_left'] = True
                   break  # Once we've found the corresponding arrowhead, we can stop checking further            
         # Apply NMS 
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.5)
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.6, nms_threshold=0.4)
 
         # Make sure indices are correct
         if len(indices) > 0:
@@ -258,7 +258,7 @@ class InferenceClient:
                 best_match = predefined
 
         # Return the best match if the ratio is above a certain threshold, else None
-        return best_match if highest_ratio >= 0.30 else "unrecognized text"
+        return best_match if highest_ratio >= 0.55 else "unrecognized text"
 
     def print_result_with_ocr(self, detection_result, image_path):
             image = cv2.imread(image_path)
