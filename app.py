@@ -21,7 +21,7 @@ for directory in ['static/objects', 'static/detected_images']:
         os.makedirs(directory)
 
 # Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/potent-bloom-422217-a8-8b6e616ee921.json"  # For Google Cloud Vision API
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/content/drive/MyDrive/flowchart/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
 
 app = Flask(__name__)
 
@@ -34,23 +34,24 @@ bucket = storage.bucket()
 
 # Define predefined commands and symbols
 predefined_commands = [
-    "move forward", "move forward two times", "move forward three times", "move forward four times", "move forward five times",
-    "move forward six times", "move forward seven times", "move forward eight times", "move forward nine times", "move forward ten times",
-    "move backward", "move backward two times", "move backward three times", "move backward four times", "move backward five times",
-    "move backward six times", "move backward seven times", "move backward eight times", "move backward nine times", "move backward ten times",
-    "turn left", "turn left two times", "turn left three times", "turn left four times", "turn left five times",
-    "turn left six times", "turn left seven times", "turn left eight times", "turn left nine times", "turn left ten times",
-    "turn right", "turn right two times", "turn right three times", "turn right four times", "turn right five times",
-    "turn right six times", "turn right seven times", "turn right eight times", "turn right nine times", "turn right ten times",
-    "turn 180", "stop", "drive forward", "turn on light", "turn off light", "play sound", "reverse", "start", "end",
-    "delay one second", "delay two seconds", "delay three seconds", "delay four seconds", "delay five seconds",
-    "delay six seconds", "delay seven seconds", "delay eight seconds", "delay nine seconds", "delay ten seconds"
+    "move forward",
+    "move backward",
+    "turn left",
+    "turn right",
+    "turn 180",
+    "delay one second",
+    "drive forward",
+    "drive backward",
+    "follow line",
+    "stop"
 ]
 
+start_end = ["start", "end"]
 
 predefined_conditions = [
-    "obstacle not detected", "line not detected", "touch sensor not pressed", 
-    "i <= 1", "i <= 2", "i <= 3", "i <= 4", "i <= 5", "i <= 6", "i <= 7", "i <= 8", "i <= 9", "i <= 10"
+    "while obstacle not detected", "while line not detected", "if line detected", "if obstacle detected",
+    "for i in range (1)", "for i in range (2)", "for i in range (3)",
+    "for i in range (4)", "for i in range (5)",
 ]
 
 
@@ -72,10 +73,29 @@ class InferenceClient:
             return texts[0].description
         else:
             return "No text detected"
+            
+    def is_arrowhead_on_top_left(self, arrow_bbox, arrowhead_bbox):
+
+        arrow_x1, arrow_y1, arrow_w, arrow_h = arrow_bbox
+        arrowhead_x1, arrowhead_y1, arrowhead_w, arrowhead_h = arrowhead_bbox
+
+        # Check if the arrowhead is near the top-left of the arrow
+        arrow_x2 = arrow_x1 + arrow_w
+        arrow_y2 = arrow_y1 + arrow_h
+        arrowhead_x2 = arrowhead_x1 + arrowhead_w
+        arrowhead_y2 = arrowhead_y1 + arrowhead_h
+
+        # Ensure the arrowhead is near the top-left of the arrow
+        is_top_left = (
+            arrowhead_x1 >= arrow_x1 and arrowhead_x2 <= arrow_x1 + (arrow_w * 0.5) and
+            arrowhead_y1 >= arrow_y1 and arrowhead_y2 <= arrow_y1 + (arrow_h * 0.5)
+        )
+
+        return is_top_left
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.5, iou_threshold=0.5)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.4, iou_threshold=0.6)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
@@ -83,6 +103,8 @@ class InferenceClient:
         detection_result = []
         boxes = []
         confidences = []
+        arrow_bboxes = []
+        arrowhead_bboxes = []
         
         for idx, prediction in enumerate(detection_result_objects["predictions"]):
             x = int(prediction["x"])
@@ -112,31 +134,41 @@ class InferenceClient:
             confidences.append(confidence)
 
             if symbol_class.lower().replace("rotation", "") == 'decision':
-                pos = y1 + 15
+                pos = y1 + 5
 
-            elif symbol_class.lower().replace("rotation", "") == 'arrow':
+            elif symbol_class == 'arrow':
+                arrow_bboxes.append((idx, x1, y1, width, height))
                 pos = y2 - 10
+
+            elif symbol_class == 'arrowhead':
+                arrowhead_bboxes.append((x1, y1, width, height))
+                pos = y2
 
             elif symbol_class.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
                 pos = y2 + 10
-                
-            elif symbol_class.lower().replace("rotation", "") == 'arrowhead':
-                pos = y2 + 10
+
             else:
                 pos = y2
 
             detection_with_ocr = {
                 'type': symbol_class.lower().replace("rotation", ""),
                 'coordinates': (x, y),
-                'command': matched_command if text != "No text detected" else "",
-                'width': width,
                 'height': height,
-                'pos': pos
+                'width': width,
+                'command': matched_command if extracted_text != "No text detected" else "",
+                'pos': pos,
+                'elbow_top_left': False  # Default to False
             }
             detection_result.append(detection_with_ocr)
             
+        for arrow_idx, arrow_x1, arrow_y1, arrow_w, arrow_h in arrow_bboxes:
+          for arrowhead_bbox in arrowhead_bboxes:
+              if self.is_arrowhead_on_top_left((arrow_x1, arrow_y1, arrow_w, arrow_h), arrowhead_bbox):
+                  # Set elbow_top_left to True if arrowhead is on top left
+                  detection_result[arrow_idx]['elbow_top_left'] = True
+                  break  # Once we've found the corresponding arrowhead, we can stop checking further            
         # Apply NMS 
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.6)
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.5)
 
         # Make sure indices are correct
         if len(indices) > 0:
@@ -147,12 +179,15 @@ class InferenceClient:
          
         # Sort results
         filtered_results.sort(key=lambda x: x["pos"])
+        
         for i in range(len(filtered_results) - 1):
+
             #WHILE Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'] in ["obstacle not detected", "line not detected","touch sensor not pressed"]:
+            filtered_results[i]['command'] in ["while obstacle not detected", "while line not detected"]:
                 # Remove the second arrowhead
                 removed_arrowhead = filtered_results.pop(i + 1)
+
                 # Insert it five positions ahead if possible
                 new_index = i + 4
                 if new_index < len(filtered_results):
@@ -163,23 +198,29 @@ class InferenceClient:
                           filtered_results[i]['type'] == 'arrowhead' and \
                           filtered_results[i + 1]['type'] == 'process' and \
                           filtered_results[i - 1]['type'] == 'arrowhead':
+
                     removed_arrowhead = filtered_results.pop(i)
 
-                    # Insert it five positions ahead if possible
-                    new_index = i + 5
+                    j = i + 1
+                    while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
+                        j += 1
+
+                    new_index = j + 2
                     if new_index < len(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
 
             #FOR LOOP Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'] in ["i <= 1", "i <= 2", "i <= 3", "i <= 4", "i <= 5", "i <= 6", "i <= 7", "i <= 8", "i <= 9", "i <= 10"]:
+            filtered_results[i]['command'] in ["for i in range (1)", "for i in range (2)", "for i in range (3)", "for i in range (4)", "for i in range (5)"]:
                 #find the next arrow element with width > 100
                 j = i + 1
                 n = len(filtered_results)
-                while j < n and (filtered_results[j]['type'] != 'arrow' or filtered_results[j]['height'] <= 400):
+                while j < n and (filtered_results[j]['type'] != 'arrow' and filtered_results[j]['height'] <= 400):
                     j += 1
+
                 # Remove the second arrowhead
                 removed_arrowhead = filtered_results.pop(i + 1)
+
                 # Insert it five positions ahead if possible
                 new_index = j
                 if new_index < len(filtered_results):
@@ -191,6 +232,7 @@ class InferenceClient:
 
         return filtered_results
 
+
     def perform_ocr(self, output_image_path):
         return self.detect_handwriting(output_image_path)
 
@@ -201,7 +243,7 @@ class InferenceClient:
             return None
 
         # Combine predefined commands and conditions
-        all_predefined = predefined_commands + predefined_conditions
+        all_predefined = predefined_commands + predefined_conditions + start_end
 
         # Initialize variables to track the best match and highest ratio
         best_match = None
@@ -216,7 +258,7 @@ class InferenceClient:
                 best_match = predefined
 
         # Return the best match if the ratio is above a certain threshold, else None
-        return best_match if highest_ratio >= 0.35 else normalized_text
+        return best_match if highest_ratio >= 0.30 else "unrecognized text
 
     def print_result_with_ocr(self, detection_result, image_path):
             image = cv2.imread(image_path)
@@ -276,19 +318,12 @@ def convert_to_pseudocode(detections):
 
     # decision commands
     decision_mapping = {
-        "obstacle not detected": "Obstacle Not Detected",
-        "line not detected": "Line Not Detected",
-        "touch sensor not pressed": "Touch Sensor Not Pressed",
-        "i <= 1": "i FROM 1 TO 1",
-        "i <= 2": "i FROM 1 TO 2",
-        "i <= 3": "i FROM 1 TO 3",
-        "i <= 4": "i FROM 1 TO 4",
-        "i <= 5": "i FROM 1 TO 5",
-        "i <= 6": "i FROM 1 TO 6",
-        "i <= 7": "i FROM 1 TO 7",
-        "i <= 8": "i FROM 1 TO 8",
-        "i <= 9": "i FROM 1 TO 9",
-        "i <= 10": "i FROM 1 TO 10"
+        "while obstacle not detected": "Obstacle Not Detected",
+        "while line not detected": "Line Not Detected",
+        "for i in range (2)": "I IN RANGE 1 TO 2",
+        "for i in range (3)": "I IN RANGE 1 TO 3",
+        "for i in range (4)": "I IN RANGE 1 TO 4",
+        "for i in range (5)": "I IN RANGE 1 TO 5",
     }
 
     def capitalize_words(text):
@@ -318,11 +353,25 @@ def convert_to_pseudocode(detections):
             if j < n and detections[j]['type'] == 'decision' and \
             j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
             detections[j + 1]['height'] >= 400:
-
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
                 pseudocode.append(f"    {command}")
+
+                k = j - 1
                 pseudocode.append(f"    WHILE {decision_command}")
-                pseudocode.append(f"        {command}")
+
+                while k < n and \
+                detections[k]['coordinates'][1] - detections[k]['height'] // 2 >= \
+                detections[j + 1]['coordinates'][1] - detections[j + 1]['height'] // 2:
+
+                    k -= 1
+
+                pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
+
+                while k < n and detections[k]['type'] != 'decision':
+                    k += 1
+                    if detections[k]['type'] == 'process' or detections[k]['type'] == 'data':
+                        pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
+
                 pseudocode.append("    END WHILE")
                 i = j  # Skip ahead to after the decision block
 
@@ -351,8 +400,8 @@ def convert_to_pseudocode(detections):
 
         # Decision symbols (nested decision not yet implemented)
         elif element['type'] == 'decision' and \
-        element['command'] in ["i <= 1", "i <= 2", "i <= 3", "i <= 4", "i <= 5", "i <= 6", "i <= 7", "i <= 8", "i <= 9", "i <= 10"]:
-
+        element['command'] in ["for i in range (1)", "for i in range (2)", "for i in range (3)", "for i in range (4)", "for i in range (5)"]:
+        # FOR LOOP
             j = i + 1
             decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
             pseudocode.append(f"    FOR {decision_command}")
@@ -374,8 +423,8 @@ def convert_to_pseudocode(detections):
             i = j  # Skip to after the decision block
 
         elif element['type'] == 'decision' and \
-        element['command'] in ["obstacle not detected", "line not detected", "touch sensor not pressed"]:
-
+        element['command'] in ["while obstacle not detected", "while line not detected"]:
+        # WHILE LOOP
             # Find next non-arrow element
             j = i + 1
             while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
@@ -493,25 +542,25 @@ def translate_pseudocode(pseudocode):
             if "TO" in condition:
                 _, to_part = condition.split("TO")
                 loop_count = to_part.strip()
-                commands.append(f"<for,{loop_count}>")
+                commands.append(f"<fr,{loop_count}>")
             else:
-                commands.append("<for>")
+                commands.append("<fr>")
 
         elif line.startswith("WHILE"):
             loop_stack.append(line)
             _, condition = line.split(' ', 1)
             formatted_condition = format_condition(condition)
-            commands.append(f"<while,{formatted_condition}>")
+            commands.append(f"<w,{formatted_condition}>")
 
         elif line.startswith("END FOR"):
             if loop_stack:
                 loop_stack.pop()
-                commands.append("<endfor>")
+                commands.append("<endfr>")
 
         elif line.startswith("END WHILE"):
             if loop_stack:
                 loop_stack.pop()
-                commands.append("<endwhile>")
+                commands.append("<endw>")
 
         else:
             command = parse_command(line)
@@ -519,6 +568,9 @@ def translate_pseudocode(pseudocode):
                 commands.append(command)
 
     return ''.join(commands)
+
+
+
 
 
 
