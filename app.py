@@ -258,7 +258,7 @@ class InferenceClient:
                 best_match = predefined
 
         # Return the best match if the ratio is above a certain threshold, else None
-        return best_match if highest_ratio >= 0.30 else "unrecognized text
+        return best_match if highest_ratio >= 0.30 else "unrecognized text"
 
     def print_result_with_ocr(self, detection_result, image_path):
             image = cv2.imread(image_path)
