@@ -571,9 +571,6 @@ def translate_pseudocode(pseudocode):
 
 
 
-
-
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -626,92 +623,48 @@ def upload_image():
         detection_result = OCR_CLIENT.detect_diagram(processed_image_path)
 
         # Check if the image contains a flowchart by ensuring there are at least 3 object detections
-        num_terminators = 0
-        num_arrows = 0
-        num_arrowheads = 0
-        command_symbols = 0
-        command_none_count = 0
-
-        for detection in detection_result:
-            label = detection['type']
-            command = detection['command']
-            
-            if label not in ['arrow', 'arrowhead', 'terminator']:
-                command_symbols += 1
-                if command is None:
-                    command_none_count += 1
-                
-            if label == 'terminator':
-                num_terminators += 1
-            elif label == 'arrow':
-                num_arrows += 1
-            elif label == 'arrowhead':
-                num_arrowheads += 1
-
-
-        # Check the conditions
-        if (
-            len(detection_result) < 3 or 
-            num_terminators < 1 or 
-            num_arrows < 1 or 
-            num_arrowheads < 1 or 
-            (command_symbols > 0 and command_none_count >= command_symbols / 2)
-        ):
-            output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
-            
-            blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-            blob.upload_from_filename(output_image_path)
-            image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-            
-            return jsonify({
-                "status": "Failed",
-                'message': "There's a problem with the image input. Please try again.",
-                'image_url': image_url
-            }), 400
-
-        else:
             # Convert to Pseudocode
-            pseudocode_result = convert_to_pseudocode(detection_result)
+        pseudocode_result = convert_to_pseudocode(detection_result)
     
-            arduino_commands = translate_pseudocode(pseudocode_result)
+        arduino_commands = translate_pseudocode(pseudocode_result)
     
             # Save the image with detections
-            output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
+        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
     
             # Upload image with detections to Firebase Storage
-            blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-            blob.upload_from_filename(output_image_path)
-            image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+        blob.upload_from_filename(output_image_path)
+        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
     
             # Save Pseudocode to Text File
-            pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
-            with open(pseudocode_path, 'w') as pseudocode_file:
-                pseudocode_file.write(pseudocode_result)
+        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
+        with open(pseudocode_path, 'w') as pseudocode_file:
+            pseudocode_file.write(pseudocode_result)
     
             # Upload JSON to Firebase Storage
-            pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
-            pseudocode_blob.upload_from_filename(pseudocode_path)
-            pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
+        pseudocode_blob.upload_from_filename(pseudocode_path)
+        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
     
             # Save URLs to Firestore
-            doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
-            doc_ref.set({
-                'image_url': image_url,
-                'pseudocode_url': pseudocode_url,
-                'arduino_commands' : arduino_commands
-            })
+        doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
+        doc_ref.set({
+            'image_url': image_url,
+            'pseudocode_url': pseudocode_url,
+            'arduino_commands' : arduino_commands
+        })
     
             # Clean up temporary files
-            os.remove(image_path)
-            os.remove(output_image_path)
-            os.remove(pseudocode_path)
+        os.remove(image_path)
+        os.remove(output_image_path)
+        os.remove(pseudocode_path)
     
-            return jsonify({
-                "status": "Success",
-                "image_url": image_url,
-                "pseudocode_url": pseudocode_url,
-                "arduino_commands": arduino_commands
-            })
+        return jsonify({
+            "status": "Success",
+            "image_url": image_url,
+            "pseudocode_url": pseudocode_url,
+            "arduino_commands": arduino_commands
+        })
 
 
 if __name__ == '__main__':
