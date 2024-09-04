@@ -606,7 +606,7 @@ def upload_image():
         warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
         # Apply Gaussian adaptive thresholding
-        T = threshold_local(warped, block_size=65, offset=33, method="gaussian")
+        T = threshold_local(warped, block_size=45, offset=33, method="gaussian")
         warped = (warped > T).astype("uint8") * 255
 
         contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
