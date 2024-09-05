@@ -603,16 +603,23 @@ def upload_image():
         image = cv2.imread(image_path)
         
         # Convert the image to grayscale
-        warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply Gaussian adaptive thresholding
-        T = threshold_local(warped, block_size=45, offset=33, method="gaussian")
-        warped = (warped > T).astype("uint8") * 255
-
-        contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Apply adaptive thresholding
+        adaptive_thresh = cv2.adaptiveThreshold(
+            gray, 
+            255, 
+            cv2.ADAPTIVE_THRESH_MEAN_C, 
+            cv2.THRESH_BINARY, 
+            43,  # Block size
+            28   # C value
+        )
+        
+        
+        contours, _ = cv2.findContours(adaptive_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         largest_contour = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_contour)
-        cropped_image = warped[y:y+h, x:x+w]
+        cropped_image = adaptive_thresh[y:y+h, x:x+w]
 
         
         # Save the processed image
