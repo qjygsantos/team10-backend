@@ -611,8 +611,8 @@ def upload_image():
             255, 
             cv2.ADAPTIVE_THRESH_MEAN_C, 
             cv2.THRESH_BINARY, 
-            43,  # Block size
-            28   # C value
+            41,  # Block size
+            52   # C value
         )
         
         
