@@ -596,7 +596,7 @@ def upload_image():
         OCR_CLIENT = InferenceClient(
             api_url="https://detect.roboflow.com",
             api_key="A6HQefLyBwFRsvEb8Adr",
-            model_id="handwritten-flowchart-part-3/15"
+            model_id="handwritten-flowchart-part-3/16"
         )
         
         # Load the uploaded image
