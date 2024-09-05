@@ -622,12 +622,12 @@ def upload_image():
         cropped_image = adaptive_thresh[y:y+h, x:x+w]
 
         
-        # Save the processed image
-        processed_image_path = "static/objects/processed_image.jpg"
-        cv2.imwrite(processed_image_path, cropped_image)
+        # Save the preprocessed image
+        preprocessed_image_path = "static/objects/processed_image.jpg"
+        cv2.imwrite(preprocessed_image_path, cropped_image)
         
         # Perform detection
-        detection_result = OCR_CLIENT.detect_diagram(processed_image_path)
+        detection_result = OCR_CLIENT.detect_diagram(preprocessed_image_path)
 
         # Check if the image contains a flowchart by ensuring there are at least 3 object detections
             # Convert to Pseudocode
@@ -636,7 +636,7 @@ def upload_image():
         arduino_commands = translate_pseudocode(pseudocode_result)
     
             # Save the image with detections
-        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, processed_image_path)
+        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, image_path)
     
             # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
@@ -663,9 +663,10 @@ def upload_image():
     
             # Clean up temporary files
         os.remove(image_path)
+        os.remove(preprocessed_image_path)
         os.remove(output_image_path)
         os.remove(pseudocode_path)
-    
+        
         return jsonify({
             "status": "Success",
             "image_url": image_url,
