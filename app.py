@@ -14,6 +14,7 @@ import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
+import skimage.filters as filters
 
 # Ensure the necessary directories exist
 for directory in ['static/objects', 'static/detected_images']:
@@ -38,18 +39,17 @@ predefined_commands = [
     "move backward",
     "turn left",
     "turn right",
-    "turn 180",
+    "turn 180"
     "delay one second",
     "drive forward",
     "drive backward",
-    "follow line",
-    "stop"
+    "follow line"
 ]
 
 start_end = ["start", "end"]
 
 predefined_conditions = [
-    "while obstacle not detected", "while line not detected", "if line detected", "if obstacle detected",
+    "while obstacle not detected", "while line not detected", "if line detected",
     "for i in range (1)", "for i in range (2)", "for i in range (3)",
     "for i in range (4)", "for i in range (5)",
 ]
@@ -62,7 +62,6 @@ class InferenceClient:
         self.model_id = model_id
 
     def detect_handwriting(self, data):
-        # Initialize Google Cloud Vision Client
         client = vision.ImageAnnotatorClient()
         with open(data, 'rb') as image_file:
             content = image_file.read()
@@ -70,32 +69,17 @@ class InferenceClient:
         response = client.document_text_detection(image=image)
         texts = response.text_annotations
         if texts:
-            return texts[0].description
+            if texts == [""]:
+                return "no text detected"
+            else:
+                return texts[0].description
         else:
-            return "No text detected"
+            return "no text detected"
             
-    def is_arrowhead_on_top_left(self, arrow_bbox, arrowhead_bbox):
-
-        arrow_x1, arrow_y1, arrow_w, arrow_h = arrow_bbox
-        arrowhead_x1, arrowhead_y1, arrowhead_w, arrowhead_h = arrowhead_bbox
-
-        # Check if the arrowhead is near the top-left of the arrow
-        arrow_x2 = arrow_x1 + arrow_w
-        arrow_y2 = arrow_y1 + arrow_h
-        arrowhead_x2 = arrowhead_x1 + arrowhead_w
-        arrowhead_y2 = arrowhead_y1 + arrowhead_h
-
-        # Ensure the arrowhead is near the top-left of the arrow
-        is_top_left = (
-            arrowhead_x1 >= arrow_x1 and arrowhead_x2 <= arrow_x1 + (arrow_w * 0.5) and
-            arrowhead_y1 >= arrow_y1 and arrowhead_y2 <= arrow_y1 + (arrow_h * 0.5)
-        )
-
-        return is_top_left
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.6, iou_threshold=0.4)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.3, iou_threshold=0.25)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
@@ -103,8 +87,7 @@ class InferenceClient:
         detection_result = []
         boxes = []
         confidences = []
-        arrow_bboxes = []
-        arrowhead_bboxes = []
+        arrow_data = []
         
         for idx, prediction in enumerate(detection_result_objects["predictions"]):
             x = int(prediction["x"])
@@ -118,6 +101,19 @@ class InferenceClient:
             y1 = y - height // 2
             x2 = x + width // 2
             y2 = y + height // 2
+            
+            # Store arrow and arrowhead data 
+            if symbol_class.lower() in ['arrow', 'arrowhead']:
+                arrow_data.append({
+                    'type': symbol_class.lower(),
+                    'x1': x1,
+                    'y1': y1,
+                    'x2': x2,
+                    'y2': y2,
+                    'center_y': y,  # Center y of the arrow
+                    'center_x': x,  # Center x of the arrow
+                    'confidence': confidence
+                })
 
             roi = image[y1:y2, x1:x2]
             roi_filename = f'cropped_image_{idx}.jpg'
@@ -134,14 +130,12 @@ class InferenceClient:
             confidences.append(confidence)
 
             if symbol_class.lower().replace("rotation", "") == 'decision':
-                pos = y1 + 5
+                pos = y1 + 10
 
             elif symbol_class == 'arrow':
-                arrow_bboxes.append((idx, x1, y1, width, height))
-                pos = y2 - 10
+                pos = y2 - 15
 
             elif symbol_class == 'arrowhead':
-                arrowhead_bboxes.append((x1, y1, width, height))
                 pos = y2
 
             elif symbol_class.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
@@ -150,25 +144,36 @@ class InferenceClient:
             else:
                 pos = y2
 
+
             detection_with_ocr = {
                 'type': symbol_class.lower().replace("rotation", ""),
                 'coordinates': (x, y),
                 'height': height,
                 'width': width,
-                'command': matched_command if text != "No text detected" else "",
+                'command': matched_command if extracted_text != "No text detected" else "",
                 'pos': pos,
-                'elbow_top_left': False  # Default to False
+                'elbow_top_left': False,  # Default to False
+                'orig_text': extracted_text,
+                'conf': confidence
+
             }
             detection_result.append(detection_with_ocr)
             
-        for arrow_idx, arrow_x1, arrow_y1, arrow_w, arrow_h in arrow_bboxes:
-          for arrowhead_bbox in arrowhead_bboxes:
-              if self.is_arrowhead_on_top_left((arrow_x1, arrow_y1, arrow_w, arrow_h), arrowhead_bbox):
-                  # Set elbow_top_left to True if arrowhead is on top left
-                  detection_result[arrow_idx]['elbow_top_left'] = True
-                  break  # Once we've found the corresponding arrowhead, we can stop checking further            
+        # Check for arrowhead-overlapping arrows
+        for arrow in arrow_data:
+            if arrow['type'] == 'arrow':
+                for arrowhead in arrow_data:
+                    if arrowhead['type'] == 'arrowhead':
+                        # Check if arrowhead overlaps with the arrow and is in the top half
+                        if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
+							              arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
+                            # Set elbow_top_left = True
+                            for detection in detection_result:
+                                if (detection['type'] == 'arrow' and
+                                   detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                                  detection['elbow_top_left'] = True      
         # Apply NMS 
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.6, nms_threshold=0.4)
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.8)
 
         # Make sure indices are correct
         if len(indices) > 0:
@@ -177,21 +182,29 @@ class InferenceClient:
         else:
             filtered_results = detection_result
          
-        # Sort results
+        # Sort results by assigned position
         filtered_results.sort(key=lambda x: x["pos"])
-        
-        for i in range(len(filtered_results) - 1):
 
+        for i in range(len(filtered_results) - 1):
+ 
             #WHILE Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
             filtered_results[i]['command'] in ["while obstacle not detected", "while line not detected"]:
-                # Remove the second arrowhead
+
+ 
+                #find the next looping arrow
+                j = i + 1
+                n = len(filtered_results)
+                while j < n and filtered_results[j]['elbow_top_left'] != True:
+                    j += 1
+
+                # Remove the next arrowhead after decision
                 removed_arrowhead = filtered_results.pop(i + 1)
 
-                # Insert it five positions ahead if possible
-                new_index = i + 4
+                # Insert it after looping arrow
+                new_index = j
                 if new_index < len(filtered_results):
-                    filtered_results.insert(new_index, removed_arrowhead)
+                    filtered_results.insert(new_index, removed_arrowhead)                    
 
             #DO-WHILE Implementation
             if i > 0 and i + 1 < len(filtered_results) and \
@@ -209,19 +222,20 @@ class InferenceClient:
                     if new_index < len(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
 
+
             #FOR LOOP Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
             filtered_results[i]['command'] in ["for i in range (1)", "for i in range (2)", "for i in range (3)", "for i in range (4)", "for i in range (5)"]:
                 #find the next arrow element with width > 100
                 j = i + 1
                 n = len(filtered_results)
-                while j < n and (filtered_results[j]['type'] != 'arrow' and filtered_results[j]['height'] <= 400):
+                while j < n and filtered_results[j]['elbow_top_left'] != True:
                     j += 1
 
                 # Remove the second arrowhead
                 removed_arrowhead = filtered_results.pop(i + 1)
 
-                # Insert it five positions ahead if possible
+                # Insert it after looping arrow
                 new_index = j
                 if new_index < len(filtered_results):
                     filtered_results.insert(new_index, removed_arrowhead)
@@ -265,7 +279,7 @@ class InferenceClient:
             image_height, image_width = image.shape[:2]
 
             # Base scale for text
-            base_scale = 0.00075  # Experiment with this value as needed
+            base_scale = 0.0005  # Experiment with this value as needed
 
             print("Inference Results with OCR:")
             for detection in detection_result:
@@ -303,7 +317,14 @@ class InferenceClient:
                 thickness = max(1, int(font_scale * 2))  # Adjust thickness based on font scale
 
                 # Draw text on the image
-                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                if detection['type'] == "arrowhead":
+                    cv2.putText(image, label, (x1 - 12, y1 + 30), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                elif detection['type'] == "terminator" and detection['command'] == "end":
+                    cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                elif detection['type'] == "decision":
+                    cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                else:
+                    cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
 
             output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
             cv2.imwrite(output_image_path, image)
@@ -351,8 +372,7 @@ def convert_to_pseudocode(detections):
 
             # If the next symbol is a decision with an arrow connected and height >= 300 - DO WHILE LOOP
             if j < n and detections[j]['type'] == 'decision' and \
-            j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
-            detections[j + 1]['height'] >= 400:
+            detections[j + 1]['elbow_top_left'] == True:
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
                 pseudocode.append(f"    {command}")
 
@@ -377,23 +397,29 @@ def convert_to_pseudocode(detections):
 
             # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
-            j + 1 < n and detections[j + 1]['type'] == 'arrow' and \
-            detections[j + 1]['height'] < 400:
+            detections[j + 1]['elbow_top_left'] != True:
 
-                # Find the next non-arrow element
                 pseudocode.append(f"    {command}")
-                j = i + 1
-                while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
-                    j += 1
 
-                # If the next symbol is a process - WHILE
-                if j < n and detections[j]['type'] == 'process':
-                    command = capitalize_words(detections[j]['command'])
-                    decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
-                    pseudocode.append(f"    WHILE {decision_command}")
-                    pseudocode.append(f"        {command}")
-                    pseudocode.append("    END WHILE")
-                    i = j  # Skip ahead to after the decision block
+                j = i + 1
+                decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
+                pseudocode.append(f"    WHILE {decision_command}")
+
+                # Find the next non-arrow element while finding arrow of > 100 width
+                while j < n and detections[j]['elbow_top_left'] != True:
+                    if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+                    elif j < n and detections[j]['type'] in ['process', 'data']:
+                        command = capitalize_words(detections[j]['command'])
+                        pseudocode.append(f"        {command}")
+                        j += 1
+
+                j += 2
+                command = capitalize_words(detections[j]['command'])
+                pseudocode.append(f"        {command}")
+                pseudocode.append("    END WHILE")
+
+                i = j  # Skip to after the decision block
 
             else:
                 pseudocode.append(f"    {command}")
@@ -407,7 +433,7 @@ def convert_to_pseudocode(detections):
             pseudocode.append(f"    FOR {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and (detections[j]['type'] != 'arrow' or detections[j]['height'] <= 400):
+            while j < n and detections[j]['elbow_top_left'] != True:
                 if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
@@ -425,21 +451,25 @@ def convert_to_pseudocode(detections):
         elif element['type'] == 'decision' and \
         element['command'] in ["while obstacle not detected", "while line not detected"]:
         # WHILE LOOP
-            # Find next non-arrow element
             j = i + 1
-            while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
-                j += 1
+            decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
+            pseudocode.append(f"    WHILE {decision_command}")
 
-            # If next symbol is process - WHILE
-            if j < n and detections[j]['type'] == 'process':
-                command = capitalize_words(detections[j]['command'])
-                decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
-                pseudocode.append(f"    WHILE {decision_command}")
-                pseudocode.append(f"        {command}")
-                pseudocode.append("    END WHILE")
-                i = j  # Skip ahead to after the decision block
-            else:
-                pseudocode.append(f"    {capitalize_words(element['command'])}")
+            # Find the next non-arrow element while finding arrow of > 100 width
+            while j < n and detections[j]['elbow_top_left'] != True:
+                if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+                elif j < n and detections[j]['type'] in ['process', 'data']:
+                    command = capitalize_words(detections[j]['command'])
+                    pseudocode.append(f"        {command}")
+                    j += 1
+
+            j += 2
+            command = capitalize_words(detections[j]['command'])
+            pseudocode.append(f"        {command}")
+            pseudocode.append("    END WHILE")
+
+            i = j  # Skip to after the decision block
 
         i += 1
 
@@ -456,6 +486,7 @@ def translate_pseudocode(pseudocode):
     command_mapping = {
         "Move Forward Five Times": "F,5",
         "Move Forward": "F",
+        "Drive Forward": "DF",
         "Move Forward Two Times": "F,2",
         "Move Forward Three Times": "F,3",
         "Move Forward Four Times": "F,4",
@@ -571,6 +602,7 @@ def translate_pseudocode(pseudocode):
 
 
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -595,32 +627,25 @@ def upload_image():
         # Initialize OCR client
         OCR_CLIENT = InferenceClient(
             api_url="https://detect.roboflow.com",
-            api_key="A6HQefLyBwFRsvEb8Adr",
-            model_id="handwritten-flowchart-part-3/15"
+            api_key="2HQ4gVVyOyZs4i2MKawd",
+            model_id="flowchart-detectioo/2"
         )
         
         # Load the uploaded image
         image = cv2.imread(image_path)
         
         # Convert the image to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply adaptive thresholding
-        adaptive_thresh = cv2.adaptiveThreshold(
-            gray, 
-            255, 
-            cv2.ADAPTIVE_THRESH_MEAN_C, 
-            cv2.THRESH_BINARY, 
-            65,  # Block size
-            33   # C value
-        )
+        # Apply Gaussian adaptive thresholding
+        T = threshold_local(warped, block_size=45, offset=30, method="gaussian")
+        warped = (warped > T).astype("uint8") * 255
         
+        contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        contours, _ = cv2.findContours(adaptive_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         largest_contour = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_contour)
-        cropped_image = adaptive_thresh[y:y+h, x:x+w]
-
+        cropped_image = warped[y:y+h, x:x+w]
         
         # Save the preprocessed image
         preprocessed_image_path = "static/objects/processed_image.jpg"
