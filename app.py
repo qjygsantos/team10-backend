@@ -150,10 +150,10 @@ class InferenceClient:
                 'coordinates': (x, y),
                 'height': height,
                 'width': width,
-                'command': matched_command if extracted_text != "No text detected" else "",
+                'command': matched_command if text != "No text detected" else "",
                 'pos': pos,
                 'elbow_top_left': False,  # Default to False
-                'orig_text': extracted_text,
+                'orig_text': text,
                 'conf': confidence
 
             }
