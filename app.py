@@ -62,6 +62,7 @@ class InferenceClient:
         self.model_id = model_id
 
     def detect_handwriting(self, data):
+        # Initialize Google Cloud Vision Client
         client = vision.ImageAnnotatorClient()
         with open(data, 'rb') as image_file:
             content = image_file.read()
@@ -69,12 +70,9 @@ class InferenceClient:
         response = client.document_text_detection(image=image)
         texts = response.text_annotations
         if texts:
-            if texts == [""]:
-                return "no text detected"
-            else:
-                return texts[0].description
+            return texts[0].description
         else:
-            return "no text detected"
+            return "No text detected"
             
 
     def detect_diagram(self, image_path):
