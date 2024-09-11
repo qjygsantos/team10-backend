@@ -157,7 +157,7 @@ class InferenceClient:
                 'coordinates': (x, y),
                 'height': height,
                 'width': width,
-                'command': matched_command if text != "No text detected" else "",
+                'command': matched_command if text != "no text detected" else "",
                 'pos': pos,
                 'elbow_top_left': False,  # Default to False
                 'elbow_bottom_curved': False,
