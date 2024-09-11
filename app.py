@@ -33,25 +33,33 @@ firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com
 db = firestore.client()
 bucket = storage.bucket()
 
-# Define predefined commands and symbols
 predefined_commands = [
     "move forward",
+    "move forward two times",
+    "move forward five times",
     "move backward",
+    "move backward two times",
+    "move backward five times",
     "turn left",
     "turn right",
-    "turn 180"
+    "turn 180",
+    "spin",
     "delay one second",
+    "delay two seconds",
+    "delay five seconds",
     "drive forward",
     "drive backward",
-    "follow line"
+    "stop"
 ]
 
 start_end = ["start", "end"]
 
 predefined_conditions = [
     "while obstacle not detected", "while line not detected", "if line detected",
-    "for i in range (1)", "for i in range (2)", "for i in range (3)",
+    "for i in range (2)", "for i in range (3)",
     "for i in range (4)", "for i in range (5)",
+    "for i in range (6)", "for i in range (7)",
+    "for i in range (8)", "for i in range (9)",
 ]
 
 
@@ -62,7 +70,6 @@ class InferenceClient:
         self.model_id = model_id
 
     def detect_handwriting(self, data):
-        # Initialize Google Cloud Vision Client
         client = vision.ImageAnnotatorClient()
         with open(data, 'rb') as image_file:
             content = image_file.read()
@@ -72,12 +79,12 @@ class InferenceClient:
         if texts:
             return texts[0].description
         else:
-            return "No text detected"
+            return "no text detected"
             
 
     def detect_diagram(self, image_path):
         image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.3, iou_threshold=0.25)
+        custom_configuration = InferenceConfiguration(confidence_threshold=0.45, iou_threshold=0.25)
         detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
         detection_client.configure(custom_configuration)
         detection_result_objects = detection_client.infer(image, model_id=self.model_id)
@@ -108,6 +115,8 @@ class InferenceClient:
                     'y1': y1,
                     'x2': x2,
                     'y2': y2,
+                    'height': height,
+                    'width': width,
                     'center_y': y,  # Center y of the arrow
                     'center_x': x,  # Center x of the arrow
                     'confidence': confidence
@@ -121,7 +130,7 @@ class InferenceClient:
 
             matched_command = None
             if symbol_class.lower() not in ['arrow', 'arrowhead']:
-                matched_command = self.match_text_with_commands(text)
+                matched_command = self.match_text_with_commands(text, symbol_class.lower().replace("rotation", ""))
                 
             # Store bounding boxes and confidences before applying NMS
             boxes.append([x1, y1, width, height])
@@ -151,6 +160,7 @@ class InferenceClient:
                 'command': matched_command if text != "No text detected" else "",
                 'pos': pos,
                 'elbow_top_left': False,  # Default to False
+                'elbow_bottom_curved': False,
                 'orig_text': text,
                 'conf': confidence
 
@@ -169,9 +179,27 @@ class InferenceClient:
                             for detection in detection_result:
                                 if (detection['type'] == 'arrow' and
                                    detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_top_left'] = True      
+                                  detection['elbow_top_left'] = True
+
+        # Check for arrowhead-overlapping arrows
+        for arrow in arrow_data:
+            if arrow['type'] == 'arrow':
+                for arrowhead in arrow_data:
+                    if arrowhead['type'] == 'arrowhead':
+                        # Check if arrowhead overlaps with the arrow and is in the bot half
+                        if (
+                            arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
+                            and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                            and arrow['height'] >= 450
+                        ):
+                            # Set elbow_top_left = True
+                            for detection in detection_result:
+                                if (detection['type'] == 'arrow' and
+                                   detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                                  detection['elbow_bottom_curved'] = True
+                                  detection['pos'] -= 30 
         # Apply NMS 
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.8)
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.45, nms_threshold=0.8)
 
         # Make sure indices are correct
         if len(indices) > 0:
@@ -182,14 +210,17 @@ class InferenceClient:
          
         # Sort results by assigned position
         filtered_results.sort(key=lambda x: x["pos"])
-
         for i in range(len(filtered_results) - 1):
- 
+
+            if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
+                        filtered_results[i + 1]['type'] != 'arrowhead':
+                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
+
             #WHILE Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'] in ["while obstacle not detected", "while line not detected"]:
+            filtered_results[i]['command'] in ["while obstacle not detected"]:
 
- 
+
                 #find the next looping arrow
                 j = i + 1
                 n = len(filtered_results)
@@ -202,7 +233,7 @@ class InferenceClient:
                 # Insert it after looping arrow
                 new_index = j
                 if new_index < len(filtered_results):
-                    filtered_results.insert(new_index, removed_arrowhead)                    
+                    filtered_results.insert(new_index, removed_arrowhead)
 
             #DO-WHILE Implementation
             if i > 0 and i + 1 < len(filtered_results) and \
@@ -223,7 +254,7 @@ class InferenceClient:
 
             #FOR LOOP Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'] in ["for i in range (1)", "for i in range (2)", "for i in range (3)", "for i in range (4)", "for i in range (5)"]:
+            filtered_results[i]['command'].startswith("for i in range"):
                 #find the next arrow element with width > 100
                 j = i + 1
                 n = len(filtered_results)
@@ -248,7 +279,7 @@ class InferenceClient:
     def perform_ocr(self, output_image_path):
         return self.detect_handwriting(output_image_path)
 
-    def match_text_with_commands(self, text):
+    def match_text_with_commands(self, text, symbol_type=None):
         normalized_text = text.strip().lower()
 
         if normalized_text == "no text detected":
@@ -269,8 +300,16 @@ class InferenceClient:
                 highest_ratio = ratio
                 best_match = predefined
 
+        # Determine if the match is appropriate based on symbol type
+        if symbol_type == "process" and best_match not in predefined_commands:
+            return "invalid text"
+        if symbol_type == "terminator" and best_match not in start_end:
+            return "invalid text"
+        if symbol_type == "decision" and best_match not in predefined_conditions:
+            return "invalid text"
+
         # Return the best match if the ratio is above a certain threshold, else None
-        return best_match if highest_ratio >= 0.55 else "unrecognized text"
+        return best_match if highest_ratio >= 0.55 else "invalid text" 
 
     def print_result_with_ocr(self, detection_result, image_path):
             image = cv2.imread(image_path)
@@ -343,6 +382,10 @@ def convert_to_pseudocode(detections):
         "for i in range (3)": "I IN RANGE 1 TO 3",
         "for i in range (4)": "I IN RANGE 1 TO 4",
         "for i in range (5)": "I IN RANGE 1 TO 5",
+        "for i in range (6)": "I IN RANGE 1 TO 6",
+        "for i in range (7)": "I IN RANGE 1 TO 7",
+        "for i in range (8)": "I IN RANGE 1 TO 8",
+        "for i in range (9)": "I IN RANGE 1 TO 9",
     }
 
     def capitalize_words(text):
@@ -370,6 +413,7 @@ def convert_to_pseudocode(detections):
 
             # If the next symbol is a decision with an arrow connected and height >= 300 - DO WHILE LOOP
             if j < n and detections[j]['type'] == 'decision' and \
+            detections[j]['command'].startswith("while") and \
             detections[j + 1]['elbow_top_left'] == True:
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
                 pseudocode.append(f"    {command}")
@@ -393,14 +437,16 @@ def convert_to_pseudocode(detections):
                 pseudocode.append("    END WHILE")
                 i = j  # Skip ahead to after the decision block
 
+
             # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
-            detections[j + 1]['elbow_top_left'] != True:
+            detections[j]['command'].startswith("while") and \
+            detections[j + 1]['elbow_top_left'] == False:
 
                 pseudocode.append(f"    {command}")
 
-                j = i + 1
-                decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
+                j += 1
+                decision_command = decision_mapping.get(detections[j-1]['command'], "Unknown Condition")
                 pseudocode.append(f"    WHILE {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
@@ -419,12 +465,39 @@ def convert_to_pseudocode(detections):
 
                 i = j  # Skip to after the decision block
 
+            # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
+            elif j < n and detections[j]['type'] == 'decision' and \
+            detections[j]['command'].startswith("for") and \
+            detections[j + 1]['elbow_top_left'] == False:
+
+                pseudocode.append(f"    {command}")
+
+                j += 1
+                decision_command = decision_mapping.get(detections[j-1]['command'], "Unknown Condition")
+                pseudocode.append(f"    FOR {decision_command}")
+
+                # Find the next non-arrow element while finding arrow of > 100 width
+                while j < n and detections[j]['elbow_top_left'] != True:
+                    if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+                    elif j < n and detections[j]['type'] in ['process', 'data']:
+                        command = capitalize_words(detections[j]['command'])
+                        pseudocode.append(f"        {command}")
+                        j += 1
+
+                j += 2
+                command = capitalize_words(detections[j]['command'])
+                pseudocode.append(f"        {command}")
+                pseudocode.append("    END FOR")
+
+                i = j  # Skip to after the decision block
             else:
                 pseudocode.append(f"    {command}")
 
+
         # Decision symbols (nested decision not yet implemented)
         elif element['type'] == 'decision' and \
-        element['command'] in ["for i in range (1)", "for i in range (2)", "for i in range (3)", "for i in range (4)", "for i in range (5)"]:
+        element['command'].startswith("for i in range"):
         # FOR LOOP
             j = i + 1
             decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
@@ -447,7 +520,7 @@ def convert_to_pseudocode(detections):
             i = j  # Skip to after the decision block
 
         elif element['type'] == 'decision' and \
-        element['command'] in ["while obstacle not detected", "while line not detected"]:
+        element['command'] in ["while obstacle not detected"]:
         # WHILE LOOP
             j = i + 1
             decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
@@ -476,6 +549,7 @@ def convert_to_pseudocode(detections):
         pseudocode.append("END")
 
     return "\n".join(pseudocode)
+
 
 
 
@@ -597,6 +671,9 @@ def translate_pseudocode(pseudocode):
                 commands.append(command)
 
     return ''.join(commands)
+
+
+
 
 
 
