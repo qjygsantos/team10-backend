@@ -1,8 +1,12 @@
+from fastapi import FastAPI, File, UploadFile, Request, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 import os
 import json
 import cv2
 import requests
-from flask import Flask, request, jsonify, render_template
+import io
 from google.cloud import vision
 from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont
@@ -24,7 +28,11 @@ for directory in ['static/objects', 'static/detected_images']:
 # Set environment variables for credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
 
-app = Flask(__name__)
+app = FastAPI()
+
+# Serve static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 # Initialize Firebase Admin
 cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
@@ -676,103 +684,94 @@ def translate_pseudocode(pseudocode):
 
 
 
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/upload', methods=['POST'])
-def upload_image():
-    if 'file' not in request.files:
-        return jsonify({"status": "Failed",
-                        "message": "No file part",
-                       }), 400
-
-    file = request.files['file']
+@app.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
     if file.filename == '':
-        return jsonify({"status": "Failed",
-                        "message": "No selected file"}), 400
-    
-    if file:
-        # Save the uploaded image to a temporary path
-        image_path = os.path.join('static/objects', file.filename)
-        file.save(image_path)
+        return JSONResponse({
+        "status": "Failed",
+        "message": "No file part",
+    })
 
-        # Initialize OCR client
-        OCR_CLIENT = InferenceClient(
-            api_url="https://detect.roboflow.com",
-            api_key="2HQ4gVVyOyZs4i2MKawd",
-            model_id="flowchart-detectioo/2"
-        )
-        
-        # Load the uploaded image
-        image = cv2.imread(image_path)
-        
-        # Convert the image to grayscale
-        warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # Apply Gaussian adaptive thresholding
-        T = threshold_local(warped, block_size=45, offset=30, method="gaussian")
-        warped = (warped > T).astype("uint8") * 255
-        
-        contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        largest_contour = max(contours, key=cv2.contourArea)
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        cropped_image = warped[y:y+h, x:x+w]
-        
-        # Save the preprocessed image
-        preprocessed_image_path = "static/objects/processed_image.jpg"
-        cv2.imwrite(preprocessed_image_path, cropped_image)
-        
-        # Perform detection
-        detection_result = OCR_CLIENT.detect_diagram(preprocessed_image_path)
+    # Save the uploaded image
+    image_path = os.path.join('static/objects', file.filename)
+    with open(image_path, "wb") as buffer:
+        buffer.write(await file.read())
 
-        # Check if the image contains a flowchart by ensuring there are at least 3 object detections
-            # Convert to Pseudocode
-        pseudocode_result = convert_to_pseudocode(detection_result)
-    
-        arduino_commands = translate_pseudocode(pseudocode_result)
-    
-            # Save the image with detections
-        output_image_path = OCR_CLIENT.print_result_with_ocr(detection_result, image_path)
-    
-            # Upload image with detections to Firebase Storage
-        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-        blob.upload_from_filename(output_image_path)
-        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-    
-            # Save Pseudocode to Text File
-        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
-        with open(pseudocode_path, 'w') as pseudocode_file:
-            pseudocode_file.write(pseudocode_result)
-    
-            # Upload JSON to Firebase Storage
-        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
-        pseudocode_blob.upload_from_filename(pseudocode_path)
-        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-    
-            # Save URLs to Firestore
-        doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
-        doc_ref.set({
-            'image_url': image_url,
-            'pseudocode_url': pseudocode_url,
-            'arduino_commands' : arduino_commands
-        })
-    
-            # Clean up temporary files
-        os.remove(image_path)
-        os.remove(preprocessed_image_path)
-        os.remove(output_image_path)
-        os.remove(pseudocode_path)
-        
-        return jsonify({
-            "status": "Success",
-            "image_url": image_url,
-            "pseudocode_url": pseudocode_url,
-            "arduino_commands": arduino_commands
-        })
+    # Initialize OCR client
+    DETECTION_CLIENT = InferenceClient(
+        api_url="https://detect.roboflow.com",
+        api_key="2HQ4gVVyOyZs4i2MKawd",
+        model_id="flowchart-detectioo/2"
+    )
+
+    # Load the uploaded image
+    image = cv2.imread(image_path)
+
+    # Convert the image to grayscale
+    warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Apply Gaussian adaptive thresholding
+    T = threshold_local(warped, block_size=45, offset=30, method="gaussian")
+    warped = (warped > T).astype("uint8") * 255
+
+    contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    largest_contour = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    cropped_image = warped[y:y+h, x:x+w]
+
+    # Save the preprocessed image
+    preprocessed_image_path = "static/objects/processed_image.jpg"
+    cv2.imwrite(preprocessed_image_path, cropped_image)
+
+    # Perform detection
+    detection_result = DETECTION_CLIENT.detect_diagram(preprocessed_image_path)
+
+    # Convert to pseudocode
+    pseudocode_result = convert_to_pseudocode(detection_result)
+    arduino_commands = translate_pseudocode(pseudocode_result)
+
+    # Save the image with detections
+    output_image_path = DETECTION_CLIENT.print_result_with_ocr(detection_result, image_path)
+
+    # Upload image with detections to Firebase Storage
+    blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+    blob.upload_from_filename(output_image_path)
+    image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+
+    # Save pseudocode to text file
+    pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
+    with open(pseudocode_path, 'w') as pseudocode_file:
+        pseudocode_file.write(pseudocode_result)
+
+    # Upload pseudocode to Firebase Storage
+    pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
+    pseudocode_blob.upload_from_filename(pseudocode_path)
+    pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+
+    # Save URLs to Firestore
+    doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
+    doc_ref.set({
+        'image_url': image_url,
+        'pseudocode_url': pseudocode_url,
+        'arduino_commands': arduino_commands
+    })
+
+    # Clean up temporary files
+    os.remove(image_path)
+    os.remove(preprocessed_image_path)
+    os.remove(output_image_path)
+    os.remove(pseudocode_path)
+
+    return JSONResponse({
+        "status": "Success",
+        "image_url": image_url,
+        "pseudocode_url": pseudocode_url,
+        "arduino_commands": arduino_commands
+    })
 
 
 if __name__ == '__main__':
