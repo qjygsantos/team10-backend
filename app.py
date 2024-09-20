@@ -705,7 +705,7 @@ async def upload_image(file: UploadFile = File(...)):
     DETECTION_CLIENT = InferenceClient(
         api_url="https://detect.roboflow.com",
         api_key="2HQ4gVVyOyZs4i2MKawd",
-        model_id="flowchart-detectioo/2"
+        model_id="flowchart-detectioo/4"
     )
 
     # Load the uploaded image
