@@ -7,6 +7,7 @@ import json
 import cv2
 import requests
 import io
+import torch
 from google.cloud import vision
 from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont
@@ -19,6 +20,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 import skimage.filters as filters
+import numpy as np
 
 # Ensure the necessary directories exist
 for directory in ['static/objects', 'static/detected_images']:
@@ -26,7 +28,7 @@ for directory in ['static/objects', 'static/detected_images']:
         os.makedirs(directory)
 
 # Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
 
 app = FastAPI()
 
@@ -35,7 +37,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
+cred = credentials.Certificate("psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
 firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
@@ -70,310 +72,325 @@ predefined_conditions = [
     "for i in range (8)", "for i in range (9)",
 ]
 
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt')
 
-class InferenceClient:
-    def __init__(self, api_url, api_key, model_id):
-        self.api_url = api_url
-        self.api_key = api_key
-        self.model_id = model_id
+def preprocess_image(image_path):
+    # Convert the image to grayscale
+    image = cv2.imread(image_path)
 
-    def detect_handwriting(self, data):
-        client = vision.ImageAnnotatorClient()
-        with open(data, 'rb') as image_file:
-            content = image_file.read()
-        image = types.Image(content=content)
-        response = client.document_text_detection(image=image)
-        texts = response.text_annotations
-        if texts:
-            return texts[0].description
-        else:
-            return "no text detected"
-            
+    warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    def detect_diagram(self, image_path):
-        image = cv2.imread(image_path)
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.45, iou_threshold=0.25)
-        detection_client = InferenceHTTPClient(api_url=self.api_url, api_key=self.api_key)
-        detection_client.configure(custom_configuration)
-        detection_result_objects = detection_client.infer(image, model_id=self.model_id)
+    # Apply Gaussian adaptive thresholding
+    T = threshold_local(warped, block_size=45, offset=30, method="gaussian")
+    warped = (warped > T).astype("uint8") * 255
 
-        detection_result = []
-        boxes = []
-        confidences = []
-        arrow_data = []
+    contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    largest_contour = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    cropped_image = warped[y:y+h, x:x+w]
+    
+
+
+    return cropped_image
+
+
+def detect_handwriting(data):
+    client = vision.ImageAnnotatorClient()
+    with open(data, 'rb') as image_file:
+        content = image_file.read()
+    image = types.Image(content=content)
+    response = client.document_text_detection(image=image)
+    texts = response.text_annotations
+    if texts:
+        return texts[0].description
+    else:
+        return "no text detected"
         
-        for idx, prediction in enumerate(detection_result_objects["predictions"]):
-            x = int(prediction["x"])
-            y = int(prediction["y"])
-            width = int(prediction["width"])
-            height = int(prediction["height"])
-            symbol_class = prediction["class"]
-            confidence = prediction["confidence"]
 
-            x1 = x - width // 2
-            y1 = y - height // 2
-            x2 = x + width // 2
-            y2 = y + height // 2
-            
-            # Store arrow and arrowhead data 
-            if symbol_class.lower() in ['arrow', 'arrowhead']:
-                arrow_data.append({
-                    'type': symbol_class.lower(),
-                    'x1': x1,
-                    'y1': y1,
-                    'x2': x2,
-                    'y2': y2,
-                    'height': height,
-                    'width': width,
-                    'center_y': y,  # Center y of the arrow
-                    'center_x': x,  # Center x of the arrow
-                    'confidence': confidence
-                })
+def detect_diagram(image_path):
+    # Load image
+    image = cv2.imread(image_path)
 
-            roi = image[y1:y2, x1:x2]
-            roi_filename = f'cropped_image_{idx}.jpg'
-            roi_path = os.path.join('static/objects', roi_filename)
-            cv2.imwrite(roi_path, roi)
-            text = self.perform_ocr(roi_path)
+    
+    results = model(image)
+    
+    detection_result_objects = results.pandas().xyxy[0]  # Use xywh format (center x, center y, width, height)
 
-            matched_command = None
-            if symbol_class.lower() not in ['arrow', 'arrowhead']:
-                matched_command = self.match_text_with_commands(text, symbol_class.lower().replace("rotation", ""))
-                
-            # Store bounding boxes and confidences before applying NMS
-            boxes.append([x1, y1, width, height])
-            confidences.append(confidence)
+    detection_result = []
+    boxes = []
+    confidences = []
+    arrow_data = []
+    
+    for idx, prediction in detection_result_objects.iterrows():
+        x_min = int(prediction['xmin'])
+        y_min = int(prediction['ymin'])
+        x_max = int(prediction['xmax'])
+        y_max = int(prediction['ymax'])
+        confidence = float(prediction['confidence'])
+        class_name = prediction['name']
 
-            if symbol_class.lower().replace("rotation", "") == 'decision':
-                pos = y1 + 10
+        # Calculate width and height
+        width = x_max - x_min
+        height = y_max - y_min
 
-            elif symbol_class == 'arrow':
-                pos = y2 - 15
-
-            elif symbol_class == 'arrowhead':
-                pos = y2
-
-            elif symbol_class.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
-                pos = y2 + 10
-
-            else:
-                pos = y2
+        # Calculate center x, y
+        x = x_min + (width / 2)
+        y = y_min + (height / 2)
 
 
-            detection_with_ocr = {
-                'type': symbol_class.lower().replace("rotation", ""),
-                'coordinates': (x, y),
+        x1 = int(x - width // 2)
+        y1 = int(y - height // 2)
+        x2 = int(x + width // 2)
+        y2 = int(y + height // 2)
+
+        
+        # Store arrow and arrowhead data 
+        if class_name.lower() in ['arrow', 'arrowhead']:
+            arrow_data.append({
+                'type': class_name.lower(),
+                'x1': x1,
+                'y1': y1,
+                'x2': x2,
+                'y2': y2,
                 'height': height,
                 'width': width,
-                'command': matched_command if text != "no text detected" else "",
-                'pos': pos,
-                'elbow_top_left': False,  # Default to False
-                'elbow_bottom_curved': False,
-                'orig_text': text,
-                'conf': confidence
+                'center_y': y,  # Center y of the arrow
+                'center_x': x,  # Center x of the arrow
+                'confidence': confidence
+            })
 
-            }
-            detection_result.append(detection_with_ocr)
+        roi = image[y1:y2, x1:x2]
+        
+        roi_filename = f'cropped_image_{idx}.jpg'
+        roi_path = os.path.join('static/objects', roi_filename)
+        cv2.imwrite(roi_path, roi)
+        text = detect_handwriting(roi_path)
+
+        matched_command = None
+        if class_name.lower() not in ['arrow', 'arrowhead']:
+            matched_command = match_text_with_commands(text, class_name.lower().replace("rotation", ""))
             
-        # Check for arrowhead-overlapping arrows
-        for arrow in arrow_data:
-            if arrow['type'] == 'arrow':
-                for arrowhead in arrow_data:
-                    if arrowhead['type'] == 'arrowhead':
-                        # Check if arrowhead overlaps with the arrow and is in the top half
-                        if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
-							              arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
-                            # Set elbow_top_left = True
-                            for detection in detection_result:
-                                if (detection['type'] == 'arrow' and
-                                   detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_top_left'] = True
+        # Store bounding boxes and confidences before applying NMS
+        boxes.append([x1, y1, width, height])
+        confidences.append(confidence)
 
-        # Check for arrowhead-overlapping arrows
-        for arrow in arrow_data:
-            if arrow['type'] == 'arrow':
-                for arrowhead in arrow_data:
-                    if arrowhead['type'] == 'arrowhead':
-                        # Check if arrowhead overlaps with the arrow and is in the bot half
-                        if (
-                            arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
-                            and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                            and arrow['height'] >= 450
-                        ):
-                            # Set elbow_top_left = True
-                            for detection in detection_result:
-                                if (detection['type'] == 'arrow' and
-                                   detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_bottom_curved'] = True
-                                  detection['pos'] -= 30 
-        # Apply NMS 
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.45, nms_threshold=0.8)
+        if class_name.lower().replace("rotation", "") == 'decision':
+            pos = y1 + 10
 
-        # Make sure indices are correct
-        if len(indices) > 0:
-            indices = indices.flatten()
-            filtered_results = [detection_result[i] for i in indices]
+        elif class_name == 'arrow':
+            pos = y2 - 15
+
+        elif class_name == 'arrowhead':
+            pos = y2
+
+        elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
+            pos = y2 + 10
+
         else:
-            filtered_results = detection_result
-         
-        # Sort results by assigned position
-        filtered_results.sort(key=lambda x: x["pos"])
-        for i in range(len(filtered_results) - 1):
-
-            if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
-                        filtered_results[i + 1]['type'] != 'arrowhead':
-                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-
-            #WHILE Implementation
-            if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'] in ["while obstacle not detected"]:
+            pos = y2
 
 
-                #find the next looping arrow
+        detection_with_ocr = {
+            'type': class_name.lower().replace("rotation", ""),
+            'coordinates': (x, y),
+            'height': height,
+            'width': width,
+            'command': matched_command if text != "no text detected" else "",
+            'pos': pos,
+            'elbow_top_left': False,  # Default to False
+            'elbow_bottom_curved': False,
+            'orig_text': text,
+            'conf': confidence
+
+        }
+        detection_result.append(detection_with_ocr)
+        
+    # Check for arrowhead-overlapping arrows
+    for arrow in arrow_data:
+        if arrow['type'] == 'arrow':
+            for arrowhead in arrow_data:
+                if arrowhead['type'] == 'arrowhead':
+                    # Check if arrowhead overlaps with the arrow and is in the top half
+                    if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
+                                      arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
+                        # Set elbow_top_left = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_top_left'] = True
+                    # Check if arrowhead overlaps with the arrow and is in the bot half
+                    if (
+                        arrowhead['x2'] >= arrow['x1']
+                        and arrow['center_x'] >= arrowhead['x2']
+                        and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                        and arrow['height'] >= 45
+                    ):
+                        # Set elbow_top_left = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_bottom_curved'] = True
+                              detection['pos'] -= 100
+                    if (
+                        arrow['x2'] >= arrowhead['x1']
+                        and arrowhead['x1'] >= arrow['center_x']
+                        and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                        and arrow['height'] >= 45
+                    ):
+                        # Set elbow_top_left = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_bottom_curved'] = True
+                              detection['pos'] -= 100
+    # Apply NMS 
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.25, nms_threshold=0.7)
+
+    # Make sure indices are correct
+    if len(indices) > 0:
+        indices = indices.flatten()
+        filtered_results = [detection_result[i] for i in indices]
+    else:
+        filtered_results = detection_result
+     
+    # Sort results by assigned position
+    filtered_results.sort(key=lambda x: x["pos"])
+    
+    for i in range(len(filtered_results) - 1):
+
+        if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
+                    filtered_results[i + 1]['type'] != 'arrowhead':
+                        filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
+
+        #DO-WHILE Implementation
+        if i > 0 and i + 1 < len(filtered_results) and \
+                      filtered_results[i]['type'] == 'arrowhead' and \
+                      filtered_results[i + 1]['type'] == 'process' and \
+                      filtered_results[i - 1]['type'] == 'arrowhead':
+
+                removed_arrowhead = filtered_results.pop(i)
+
                 j = i + 1
-                n = len(filtered_results)
-                while j < n and filtered_results[j]['elbow_top_left'] != True:
+                while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
                     j += 1
 
-                # Remove the next arrowhead after decision
-                removed_arrowhead = filtered_results.pop(i + 1)
-
-                # Insert it after looping arrow
-                new_index = j
+                new_index = j + 2
                 if new_index < len(filtered_results):
                     filtered_results.insert(new_index, removed_arrowhead)
 
-            #DO-WHILE Implementation
-            if i > 0 and i + 1 < len(filtered_results) and \
-                          filtered_results[i]['type'] == 'arrowhead' and \
-                          filtered_results[i + 1]['type'] == 'process' and \
-                          filtered_results[i - 1]['type'] == 'arrowhead':
 
-                    removed_arrowhead = filtered_results.pop(i)
+        #FOR LOOP Implementation
+        if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
+                    (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
+            #find the next arrow element with width > 100
+            j = i + 1
+            n = len(filtered_results)
+            while j < n and filtered_results[j]['elbow_top_left'] != True:
+                j += 1
 
-                    j = i + 1
-                    while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
-                        j += 1
+            # Remove the second arrowhead
+            removed_arrowhead = filtered_results.pop(i + 1)
 
-                    new_index = j + 2
-                    if new_index < len(filtered_results):
-                        filtered_results.insert(new_index, removed_arrowhead)
+            # Insert it after looping arrow
+            new_index = j
+            if new_index < len(filtered_results):
+                filtered_results.insert(new_index, removed_arrowhead)
 
+    for idx, detection in enumerate(filtered_results):
+        # Assign ID
+        detection["order"] = idx + 1
 
-            #FOR LOOP Implementation
-            if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-            filtered_results[i]['command'].startswith("for i in range"):
-                #find the next arrow element with width > 100
-                j = i + 1
-                n = len(filtered_results)
-                while j < n and filtered_results[j]['elbow_top_left'] != True:
-                    j += 1
-
-                # Remove the second arrowhead
-                removed_arrowhead = filtered_results.pop(i + 1)
-
-                # Insert it after looping arrow
-                new_index = j
-                if new_index < len(filtered_results):
-                    filtered_results.insert(new_index, removed_arrowhead)
-
-        for idx, detection in enumerate(filtered_results):
-            # Assign ID
-            detection["order"] = idx + 1
-
-        return filtered_results
+    return filtered_results
 
 
-    def perform_ocr(self, output_image_path):
-        return self.detect_handwriting(output_image_path)
+def match_text_with_commands(text, symbol_type=None):
+    normalized_text = text.strip().lower()
 
-    def match_text_with_commands(self, text, symbol_type=None):
-        normalized_text = text.strip().lower()
+    if normalized_text == "no text detected":
+        return None
 
-        if normalized_text == "no text detected":
-            return None
+    # Combine predefined commands and conditions
+    all_predefined = predefined_commands + predefined_conditions + start_end
 
-        # Combine predefined commands and conditions
-        all_predefined = predefined_commands + predefined_conditions + start_end
+    # Initialize variables to track the best match and highest ratio
+    best_match = None
+    highest_ratio = 0
 
-        # Initialize variables to track the best match and highest ratio
-        best_match = None
-        highest_ratio = 0
+    # Iterate through all predefined strings
+    for predefined in all_predefined:
+        ratio = SM(None, normalized_text, predefined).ratio()
 
-        # Iterate through all predefined strings
-        for predefined in all_predefined:
-            ratio = SM(None, normalized_text, predefined).ratio()
+        if ratio > highest_ratio:
+            highest_ratio = ratio
+            best_match = predefined
 
-            if ratio > highest_ratio:
-                highest_ratio = ratio
-                best_match = predefined
+    # Determine if the match is appropriate based on symbol type
+    if symbol_type == "process" and best_match not in predefined_commands:
+        return "invalid text"
+    if symbol_type == "terminator" and best_match not in start_end:
+        return "invalid text"
+    if symbol_type == "decision" and best_match not in predefined_conditions:
+        return "invalid text"
 
-        # Determine if the match is appropriate based on symbol type
-        if symbol_type == "process" and best_match not in predefined_commands:
-            return "invalid text"
-        if symbol_type == "terminator" and best_match not in start_end:
-            return "invalid text"
-        if symbol_type == "decision" and best_match not in predefined_conditions:
-            return "invalid text"
+    # Return the best match if the ratio is above a certain threshold, else None
+    return best_match if highest_ratio >= 0.55 else "invalid text"
 
-        # Return the best match if the ratio is above a certain threshold, else None
-        return best_match if highest_ratio >= 0.55 else "invalid text" 
 
-    def print_result_with_ocr(self, detection_result, image_path):
-            image = cv2.imread(image_path)
-            image_height, image_width = image.shape[:2]
+def print_result(detection_result, image_path):
+        image = cv2.imread(image_path)
+        image_height, image_width = image.shape[:2]
 
-            # Base scale for text
-            base_scale = 0.0005  # Experiment with this value as needed
+        # Base scale for text
+        base_scale = 0.0006  # Experiment with this value as needed
 
-            print("Inference Results with OCR:")
-            for detection in detection_result:
-                print(detection)
+        print("Inference Results with OCR:")
+        for detection in detection_result:
+            print(detection)
 
-                x1 = int(detection["coordinates"][0] - detection["width"] // 2)
-                y1 = int(detection["coordinates"][1] - detection["height"] // 2)
-                x2 = int(detection["coordinates"][0] + detection["width"] // 2)
-                y2 = int(detection["coordinates"][1] + detection["height"] // 2)
+            x1 = int(detection["coordinates"][0] - detection["width"] // 2)
+            y1 = int(detection["coordinates"][1] - detection["height"] // 2)
+            x2 = int(detection["coordinates"][0] + detection["width"] // 2)
+            y2 = int(detection["coordinates"][1] + detection["height"] // 2)
 
-                if detection["type"] == "arrow":
-                    x = x1
-                    y = y1
+            if detection["type"] == "arrow":
+                x = x1
+                y = y1
 
-                if detection["type"] == "arrowhead":
-                    x = x2
-                    y = y2
+            if detection["type"] == "arrowhead":
+                x = x2
+                y = y2
 
-                else:
-                    x = detection["coordinates"][0]
-                    y = detection["coordinates"][1]
+            else:
+                x = detection["coordinates"][0]
+                y = detection["coordinates"][1]
 
-                x1 = int(detection["coordinates"][0] - detection["width"] // 2)
-                y1 = int(detection["coordinates"][1] - detection["height"] // 2)
-                x2 = int(detection["coordinates"][0] + detection["width"] // 2)
-                y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-                cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            x1 = int(detection["coordinates"][0] - detection["width"] // 2)
+            y1 = int(detection["coordinates"][1] - detection["height"] // 2)
+            x2 = int(detection["coordinates"][0] + detection["width"] // 2)
+            y2 = int(detection["coordinates"][1] + detection["height"] // 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                label = f"{detection['order']}. {detection['type']}"
-                if detection['command']:
-                    label += f" ({detection['command']})"
+            label = f"{detection['order']}. {detection['type']}"
+            if detection['command']:
+                label += f" ({detection['command']})"
 
-                # Calculate font scale based on image dimensions
-                font_scale = base_scale * max(image_width, image_height)
-                thickness = max(1, int(font_scale * 2))  # Adjust thickness based on font scale
+            # Calculate font scale based on image dimensions
+            font_scale = base_scale * max(image_width, image_height)
+            thickness = max(1, int(font_scale * 2))  # Adjust thickness based on font scale
 
-                # Draw text on the image
-                if detection['type'] == "arrowhead":
-                    cv2.putText(image, label, (x1 - 12, y1 + 30), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
-                elif detection['type'] == "terminator" and detection['command'] == "end":
-                    cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
-                elif detection['type'] == "decision":
-                    cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
-                else:
-                    cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+            # Draw text on the image
+            if detection['type'] == "arrowhead":
+                cv2.putText(image, label, (x1 - 12, y1 + 30), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+            elif detection['type'] == "terminator" and detection['command'] == "end":
+                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+            elif detection['type'] == "decision":
+                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+            else:
+                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
 
-            output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-            cv2.imwrite(output_image_path, image)
-            return output_image_path
+        output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
+        cv2.imwrite(output_image_path, image)
+        return output_image_path
 
 
 def convert_to_pseudocode(detections):
@@ -559,70 +576,24 @@ def convert_to_pseudocode(detections):
     return "\n".join(pseudocode)
 
 
-
-
-
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "Move Forward Five Times": "F,5",
         "Move Forward": "F",
         "Drive Forward": "DF",
         "Move Forward Two Times": "F,2",
-        "Move Forward Three Times": "F,3",
-        "Move Forward Four Times": "F,4",
-        "Move Forward Six Times": "F,6",
-        "Move Forward Seven Times": "F,7",
-        "Move Forward Eight Times": "F,8",
-        "Move Forward Nine Times": "F,9",
-        "Move Forward Ten Times": "F,10",
         "Move Backward Five Times": "B,5",
         "Move Backward": "B",
         "Move Backward Two Times": "B,2",
-        "Move Backward Three Times": "B,3",
-        "Move Backward Four Times": "B,4",
-        "Move Backward Six Times": "B,6",
-        "Move Backward Seven Times": "B,7",
-        "Move Backward Eight Times": "B,8",
-        "Move Backward Nine Times": "B,9",
-        "Move Backward Ten Times": "B,10",
         "Turn Left": "L",
-        "Turn Left Two Times": "L,2",
-        "Turn Left Three Times": "L,3",
-        "Turn Left Four Times": "L,4",
-        "Turn Left Five Times": "L,5",
-        "Turn Left Six Times": "L,6",
-        "Turn Left Seven Times": "L,7",
-        "Turn Left Eight Times": "L,8",
-        "Turn Left Nine Times": "L,9",
-        "Turn Left Ten Times": "L,10",
         "Turn Right": "R",
-        "Turn Right Two Times": "R,2",
-        "Turn Right Three Times": "R,3",
-        "Turn Right Four Times": "R,4",
-        "Turn Right Five Times": "R,5",
-        "Turn Right Six Times": "R,6",
-        "Turn Right Seven Times": "R,7",
-        "Turn Right Eight Times": "R,8",
-        "Turn Right Nine Times": "R,9",
-        "Turn Right Ten Times": "R,10",
         "Turn 180": "T,180",
         "Turn 360": "T,360",
         "Delay One Second": "D,1",
         "Delay Two Seconds": "D,2",
-        "Delay Three Seconds": "D,3",
-        "Delay Four Seconds": "D,4",
         "Delay Five Seconds": "D,5",
-        "Delay Six Seconds": "D,6",
-        "Delay Seven Seconds": "D,7",
-        "Delay Eight Seconds": "D,8",
-        "Delay Nine Seconds": "D,9",
-        "Delay Ten Seconds": "D,10",
-        "Turn on Light": "on",
-        "Turn off Light": "off",
-        "Play Sound": "S",
-        "Reverse": "R",
-        "Start": "S",
-        "End": "E",
+        "Drive Backward": "R",
+        "Stop": "S",
         "Obstacle Not Detected": "obs",
         "Line Not Detected": "line",
         "Touch Sensor Not Pressed": "touch"
@@ -683,7 +654,6 @@ def translate_pseudocode(pseudocode):
 
 
 
-
 @app.get("/")
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -701,41 +671,22 @@ async def upload_image(file: UploadFile = File(...)):
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
 
-    # Initialize OCR client
-    DETECTION_CLIENT = InferenceClient(
-        api_url="https://detect.roboflow.com",
-        api_key="2HQ4gVVyOyZs4i2MKawd",
-        model_id="flowchart-detectioo/4"
-    )
-
-    # Load the uploaded image
-    image = cv2.imread(image_path)
-
-    # Convert the image to grayscale
-    warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian adaptive thresholding
-    T = threshold_local(warped, block_size=45, offset=30, method="gaussian")
-    warped = (warped > T).astype("uint8") * 255
-
-    contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    largest_contour = max(contours, key=cv2.contourArea)
-    x, y, w, h = cv2.boundingRect(largest_contour)
-    cropped_image = warped[y:y+h, x:x+w]
+    # Preprocess
+    preprocessed_img = preprocess_image(image_path)
 
     # Save the preprocessed image
     preprocessed_image_path = "static/objects/processed_image.jpg"
-    cv2.imwrite(preprocessed_image_path, cropped_image)
+    cv2.imwrite(preprocessed_image_path, preprocessed_img)
 
     # Perform detection
-    detection_result = DETECTION_CLIENT.detect_diagram(preprocessed_image_path)
+    detection_result = detect_diagram(preprocessed_image_path)
 
     # Convert to pseudocode
     pseudocode_result = convert_to_pseudocode(detection_result)
     arduino_commands = translate_pseudocode(pseudocode_result)
 
     # Save the image with detections
-    output_image_path = DETECTION_CLIENT.print_result_with_ocr(detection_result, image_path)
+    output_image_path = print_result(detection_result, image_path)
 
     # Upload image with detections to Firebase Storage
     blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
@@ -752,13 +703,7 @@ async def upload_image(file: UploadFile = File(...)):
     pseudocode_blob.upload_from_filename(pseudocode_path)
     pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
-    # Save URLs to Firestore
-    doc_ref = db.collection('image_data').document(file.filename.split('.')[0])
-    doc_ref.set({
-        'image_url': image_url,
-        'pseudocode_url': pseudocode_url,
-        'arduino_commands': arduino_commands
-    })
+
 
     # Clean up temporary files
     os.remove(image_path)
