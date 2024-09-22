@@ -12,4 +12,3 @@ google-cloud-storage==2.8.0
 firebase-admin
 uvicorn
 python-multipart
-torch torchvision opencv-python
