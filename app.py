@@ -34,6 +34,7 @@ app = FastAPI()
 
 # Serve static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/models", StaticFiles(directory="models"), name="models")
 templates = Jinja2Templates(directory="templates")
 
 # Initialize Firebase Admin
