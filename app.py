@@ -73,7 +73,7 @@ predefined_conditions = [
     "for i in range (8)", "for i in range (9)",
 ]
 
-model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt')
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='models/best.pt')
 
 def preprocess_image(image_path):
     # Convert the image to grayscale
