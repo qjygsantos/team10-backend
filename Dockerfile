@@ -18,14 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application files into the container
 COPY . .
 
-# Make the start script executable
-RUN chmod +x start.sh
-
 # Expose the port that the app will run on
 EXPOSE 8080
 
-# Define environment variable for the port
+# Define environment variable for the port (optional)
 ENV PORT=8080
 
-# Run the start script
-CMD ["./start.sh"]
+# Run Uvicorn server, explicitly using the environment variable
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
