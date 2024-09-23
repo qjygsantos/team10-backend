@@ -29,7 +29,7 @@ for directory in ['static/objects', 'static/detected_images']:
         os.makedirs(directory)
 
 # Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "app/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/app/google-vision-config.json"  # For Google Cloud Vision API
 
 app = FastAPI()
 
@@ -40,7 +40,7 @@ templates = Jinja2Templates(directory="templates")
 
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("app/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
+cred = credentials.Certificate("/app/firebase-config.json")
 firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
