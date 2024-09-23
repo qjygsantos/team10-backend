@@ -28,7 +28,11 @@ for directory in ['static/objects', 'static/detected_images']:
         os.makedirs(directory)
 
 # Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
+google_credentials = os.environ["GOOGLE_CREDENTIALS"]
+with open("/etc/secrets/google_credentials.json", "w") as f:
+    f.write(google_credentials)
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/google_credentials.json"
 
 app = FastAPI()
 
@@ -38,7 +42,8 @@ app.mount("/models", StaticFiles(directory="models"), name="models")
 templates = Jinja2Templates(directory="templates")
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
+firebase_credentials = os.environ["FIREBASE_CREDENTIALS"]
+cred = credentials.Certificate(json.loads(firebase_credentials))
 firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
