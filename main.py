@@ -9,6 +9,7 @@ import requests
 import io
 import torch
 from google.cloud import vision
+from google.oauth2 import service_account
 from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont
 import difflib
@@ -28,10 +29,11 @@ for directory in ['static/objects', 'static/detected_images']:
 
 # Set environment variables for credentials
 google_credentials = os.environ["GOOGLE_CREDENTIALS"]
-with open("google_cred.json", "w") as f:
-    f.write(google_credentials)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_cred.json"
+# Create credentials from the JSON string
+credentials = service_account.Credentials.from_service_account_info(
+    json.loads(google_credentials)
+)
 
 app = FastAPI()
 
@@ -100,7 +102,7 @@ def preprocess_image(image_path):
 
 
 def detect_handwriting(data):
-    client = vision.ImageAnnotatorClient()
+    client = vision.ImageAnnotatorClient(credentials=credentials)
     with open(data, 'rb') as image_file:
         content = image_file.read()
     image = types.Image(content=content)
