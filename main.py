@@ -29,13 +29,7 @@ for directory in ['static/objects', 'static/detected_images']:
         os.makedirs(directory)
 
 # Set environment variables for credentials
-google_credentials = os.environ["GOOGLE_CREDENTIALS"]
-firebase_credentials = os.environ["FIREBASE_CREDENTIALS"]
-
-# Create credentials from the JSON string
-google_creds = service_account.Credentials.from_service_account_info(
-    json.loads(google_credentials)
-)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "app/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
 
 app = FastAPI()
 
@@ -45,14 +39,9 @@ app.mount("/models", StaticFiles(directory="models"), name="models")
 templates = Jinja2Templates(directory="templates")
 
 
-# Create a temporary file to store the credentials
-with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-    temp_file.write(firebase_credentials.encode('utf-8'))
-    temp_file.flush()  # Ensure the file is written before using it
-
-    # Use the temporary file for credentials
-    cred = service_account.Credentials.from_service_account_file(temp_file.name)
-    firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
+# Initialize Firebase Admin
+cred = credentials.Certificate("app/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
+firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
 bucket = storage.bucket()
@@ -109,7 +98,7 @@ def preprocess_image(image_path):
 
 
 def detect_handwriting(data):
-    client = vision.ImageAnnotatorClient(credentials=credentials)
+    client = vision.ImageAnnotatorClient()
     with open(data, 'rb') as image_file:
         content = image_file.read()
     image = types.Image(content=content)
