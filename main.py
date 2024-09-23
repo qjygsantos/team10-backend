@@ -28,10 +28,10 @@ for directory in ['static/objects', 'static/detected_images']:
 
 # Set environment variables for credentials
 google_credentials = os.environ["GOOGLE_CREDENTIALS"]
-with open("/etc/secrets/google_credentials.json", "w") as f:
+with open("google_cred.json", "w") as f:
     f.write(google_credentials)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/google_credentials.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_cred.json"
 
 app = FastAPI()
 
