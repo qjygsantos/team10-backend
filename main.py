@@ -33,7 +33,7 @@ google_credentials = os.environ["GOOGLE_CREDENTIALS"]
 firebase_credentials = os.environ["FIREBASE_CREDENTIALS"]
 
 # Create credentials from the JSON string
-credentials = service_account.Credentials.from_service_account_info(
+google_creds = service_account.Credentials.from_service_account_info(
     json.loads(google_credentials)
 )
 
@@ -51,7 +51,7 @@ with tempfile.NamedTemporaryFile(delete=True) as temp_file:
     temp_file.flush()  # Ensure the file is written before using it
 
     # Use the temporary file for credentials
-    cred = credentials.Certificate(temp_file.name)
+    cred = service_account.Credentials.from_service_account_file(temp_file.name)
     firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
