@@ -10,6 +10,6 @@ google-cloud-datastore==2.19.0
 google-cloud-firestore==2.16.1
 google-cloud-storage==2.8.0
 firebase-admin
-uvicorn
+hypercorn==0.14.4
 python-multipart
 torch
