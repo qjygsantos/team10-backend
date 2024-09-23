@@ -18,7 +18,6 @@ from skimage.filters import threshold_local
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
-from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 import skimage.filters as filters
 import numpy as np
 
