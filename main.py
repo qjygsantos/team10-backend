@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import os
 import json
+import tempfile
 import cv2
 import requests
 import io
@@ -29,6 +30,7 @@ for directory in ['static/objects', 'static/detected_images']:
 
 # Set environment variables for credentials
 google_credentials = os.environ["GOOGLE_CREDENTIALS"]
+firebase_credentials = os.environ["FIREBASE_CREDENTIALS"]
 
 # Create credentials from the JSON string
 credentials = service_account.Credentials.from_service_account_info(
@@ -42,10 +44,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/models", StaticFiles(directory="models"), name="models")
 templates = Jinja2Templates(directory="templates")
 
-# Initialize Firebase Admin
-firebase_credentials = os.environ["FIREBASE_CREDENTIALS"]
-cred = credentials.Certificate(json.loads(firebase_credentials))
-firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
+
+# Create a temporary file to store the credentials
+with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+    temp_file.write(firebase_credentials.encode('utf-8'))
+    temp_file.flush()  # Ensure the file is written before using it
+
+    # Use the temporary file for credentials
+    cred = credentials.Certificate(temp_file.name)
+    firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
 bucket = storage.bucket()
