@@ -2,8 +2,7 @@
 FROM python:3.11-slim
 
 # Install system dependencies
-RUN apt update && apt-get install\
--y libgl1 libgl1-mesa-glx libglib2.0-0 libsm6 libxrender1 libxext6
+RUN apt update; apt-get install -y libgl1 libgl1-mesa-glx libglib2.0-0 libsm6 libxrender1 libxext6
 
 # Set the working directory
 WORKDIR /app
