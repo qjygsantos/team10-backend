@@ -22,6 +22,8 @@ RUN echo $GOOGLE_APPLICATION_CREDENTIALS_JSON > /app/google-vision-config.json \
 COPY . .
 
 RUN pip uninstall -y opencv-python
+RUN pip install opencv-python-headless==4.10.0.84
+
 # Expose the port that the app will run on
 EXPOSE 8080
 
