@@ -1,4 +1,3 @@
-ultralytics
 fastapi==0.95.1
 pandas
 google-cloud-vision==3.7.3
