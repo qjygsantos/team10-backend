@@ -25,17 +25,30 @@ for directory in ['static/objects', 'static/detected_images']:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# Set environment variables for credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/trusty-ether-434318-m3-864061dea084.json"  # For Google Cloud Vision API
+# Create JSON files from environment variables
+google_credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+firebase_credentials_json = os.environ.get("FIREBASE_APPLICATION_CREDENTIALS_JSON")
+
+if google_credentials_json:
+    with open("/app/google-vision-config.json", "w") as google_file:
+        json.dump(json.loads(google_credentials_json), google_file)
+
+if firebase_credentials_json:
+    with open("/app/firebase-config.json", "w") as firebase_file:
+        json.dump(json.loads(firebase_credentials_json), firebase_file)
+
+# Set environment variable for Google Cloud Vision API
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/app/google-vision-config.json"
 
 app = FastAPI()
 
 # Serve static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/models", StaticFiles(directory="models"), name="models")
 templates = Jinja2Templates(directory="templates")
 
 # Initialize Firebase Admin
-cred = credentials.Certificate("/etc/secrets/psykitz-891d8-firebase-adminsdk-l7okt-38b1a73888.json")
+cred = credentials.Certificate("/app/firebase-config.json")
 firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com'})
 
 db = firestore.client()
