@@ -2,8 +2,11 @@
 FROM python:3.11-slim
 
 # Install system dependencies
-RUN apt update \
-    && apt install -y libgl1-mesa-glx
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install\
+    libgl1\
+    libgl1-mesa-glx \ 
+    libglib2.0-0 -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
