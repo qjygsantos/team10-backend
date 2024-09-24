@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application files into the container
 COPY . .
 
-RUN pip uninstall -y opencv-python
+
 RUN pip install opencv-python-headless==4.10.0.84
 
 # Expose the port that the app will run on
