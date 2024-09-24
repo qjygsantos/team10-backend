@@ -14,6 +14,10 @@ COPY requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Add environment variables for Google Vision and Firebase credentials (optional, if you have them set before)
+ENV GOOGLE_APPLICATION_CREDENTIALS_JSON=$GOOGLE_APPLICATION_CREDENTIALS_JSON
+ENV FIREBASE_APPLICATION_CREDENTIALS_JSON=$FIREBASE_APPLICATION_CREDENTIALS_JSON
+
 # Write the environment variables to JSON files for Google Cloud Vision and Firebase
 RUN echo $GOOGLE_APPLICATION_CREDENTIALS_JSON > /app/google-vision-config.json \
     && echo $FIREBASE_APPLICATION_CREDENTIALS_JSON > /app/firebase-config.json
