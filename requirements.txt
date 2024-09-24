@@ -3,7 +3,6 @@ fastapi==0.95.1
 pandas
 google-cloud-vision==3.7.3
 google-auth
-opencv-python-headless==4.10.0.84
 ipywidgets==7.7.1
 Pillow==9.4.0
 scikit-image==0.23.2
