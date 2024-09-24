@@ -16,7 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Uninstall opencv-python, reinstall remaining packages, and install opencv-python-headless
 RUN pip uninstall -y opencv-python \
-    && pip install $(grep -ivE "opencv-python" requirements.txt) \
     && pip install opencv-python-headless
 
 # Write the environment variables to JSON files for Google Cloud Vision and Firebase
