@@ -2,9 +2,8 @@
 FROM python:3.11-slim
 
 # Install system dependencies
-RUN apt update
-
-RUN apt install -y libgl1-mesa-glx
+RUN apt update \
+    && apt install -y libgl1-mesa-glx
 
 # Set the working directory
 WORKDIR /app
@@ -14,6 +13,15 @@ COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Uninstall opencv-python, reinstall remaining packages, and install opencv-python-headless
+RUN pip uninstall -y opencv-python \
+    && pip install $(grep -ivE "opencv-python" requirements.txt) \
+    && pip install opencv-python-headless
+
+# Write the environment variables to JSON files for Google Cloud Vision and Firebase
+RUN echo $GOOGLE_APPLICATION_CREDENTIALS_JSON > /app/google-vision-config.json \
+    && echo $FIREBASE_APPLICATION_CREDENTIALS_JSON > /app/firebase-config.json
 
 # Copy the rest of the application files into the container
 COPY . .
