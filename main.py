@@ -86,7 +86,8 @@ predefined_conditions = [
 ]
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='models/best.pt')
-
+model.conf = 0.45  # confidence threshold (0-1)
+model.iou = 0.7
 def preprocess_image(image_path):
     # Convert the image to grayscale
     image = cv2.imread(image_path)
@@ -257,7 +258,7 @@ def detect_diagram(image_path):
                               detection['elbow_bottom_curved'] = True
                               detection['pos'] -= 100
     # Apply NMS 
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.7)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.45, nms_threshold=0.7)
 
     # Make sure indices are correct
     if len(indices) > 0:
