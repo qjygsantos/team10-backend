@@ -257,7 +257,7 @@ def detect_diagram(image_path):
                               detection['elbow_bottom_curved'] = True
                               detection['pos'] -= 100
     # Apply NMS 
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.25, nms_threshold=0.7)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.5, nms_threshold=0.7)
 
     # Make sure indices are correct
     if len(indices) > 0:
