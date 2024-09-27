@@ -442,7 +442,7 @@ def convert_to_pseudocode(detections):
                     pseudocode.append("BEGIN")
             elif element['command'] == 'end':
                     pseudocode.append("END")
-                end_detected = True  # Mark END
+                    end_detected = True  # Mark END
 
         # Process symbols
         elif element['type'] == 'process':
