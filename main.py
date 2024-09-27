@@ -72,7 +72,8 @@ predefined_commands = [
     "delay five seconds",
     "drive forward",
     "drive backward",
-    "stop"
+    "stop",
+    "turn on led"
 ]
 
 start_end = ["start", "end"]
@@ -86,8 +87,7 @@ predefined_conditions = [
 ]
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='models/best.pt')
-model.conf = 0.45  # confidence threshold (0-1)
-model.iou = 0.7
+
 def preprocess_image(image_path):
     # Convert the image to grayscale
     image = cv2.imread(image_path)
@@ -610,7 +610,8 @@ def translate_pseudocode(pseudocode):
         "Stop": "S",
         "Obstacle Not Detected": "obs",
         "Line Not Detected": "line",
-        "Touch Sensor Not Pressed": "touch"
+        "Touch Sensor Not Pressed": "touch",
+        "Turn On Led": "LED"
     }
 
     commands = []
