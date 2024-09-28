@@ -719,43 +719,104 @@ async def upload_image(file: UploadFile = File(...)):
 
     # Perform detection
     detection_result = detect_diagram(preprocessed_image_path)
-
-    # Convert to pseudocode
-    pseudocode_result = convert_to_pseudocode(detection_result)
-    arduino_commands = translate_pseudocode(pseudocode_result)
-
-    # Save the image with detections
-    output_image_path = print_result(detection_result, image_path)
-
-    # Upload image with detections to Firebase Storage
-    blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-    blob.upload_from_filename(output_image_path)
-    image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-
-    # Save pseudocode to text file
-    pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
-    with open(pseudocode_path, 'w') as pseudocode_file:
-        pseudocode_file.write(pseudocode_result)
-
-    # Upload pseudocode to Firebase Storage
-    pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
-    pseudocode_blob.upload_from_filename(pseudocode_path)
-    pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+    
+            # Check if the image contains a flowchart by ensuring there are at least 3 object detections
+    num_terminators = 0
+    num_arrows = 0
+    num_arrowheads = 0
+    count_symbols = len(detection_result)
 
 
+    for detection in detection_result:
+        label = detection['type']
+        
+           
+        if label == 'terminator':
+            num_terminators += 1
+        elif label == 'arrow':
+            num_arrows += 1
+        elif label == 'arrowhead':
+            num_arrowheads += 1
 
-    # Clean up temporary files
-    os.remove(image_path)
-    os.remove(preprocessed_image_path)
-    os.remove(output_image_path)
-    os.remove(pseudocode_path)
+    # Check the conditions
+    if (
+        count_symbols < 7 or
+        num_terminators != 2 or 
+        num_arrows <= 1 or 
+        num_arrowheads <= 1 or 
+        
+    ):
+        # Convert 
+        pseudocode_result = "Error: INVALID SYNTAX"
+        arduino_commands = ""
+        
+        # Save the image with detections
+        output_image_path = print_result(detection_result, image_path)
 
-    return JSONResponse({
-        "status": "Success",
-        "image_url": image_url,
-        "pseudocode_url": pseudocode_url,
-        "arduino_commands": arduino_commands
-    })
+        # Save the pseudocode 
+        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
+        with open(pseudocode_path, 'w') as pseudocode_file:
+            pseudocode_file.write(pseudocode_result)
+            
+        # Upload image with detections to Firebase Storage
+        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+        blob.upload_from_filename(output_image_path)
+        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+    
+        # Upload pseudocode to Firebase Storage
+        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
+        pseudocode_blob.upload_from_filename(pseudocode_path)
+        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+
+        # Clean up temporary files
+        os.remove(image_path)
+        os.remove(preprocessed_image_path)
+        os.remove(output_image_path)
+        os.remove(pseudocode_path)
+        
+        return JSONResponse({
+            "status": "Success",
+            "image_url": image_url,
+            "pseudocode_url": "pseudocode_url",
+            "arduino_commands": arduino_commands
+        })
+        
+    else:
+        # Convert 
+        pseudocode_result = convert_to_pseudocode(detection_result)
+        arduino_commands = translate_pseudocode(pseudocode_result)
+    
+        # Save the image with detections
+        output_image_path = print_result(detection_result, image_path)
+        
+        # Save the pseudocode 
+        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
+        with open(pseudocode_path, 'w') as pseudocode_file:
+            pseudocode_file.write(pseudocode_result)    
+            
+        # Upload image with detections to Firebase Storage
+        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
+        blob.upload_from_filename(output_image_path)
+        image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+    
+        # Upload pseudocode to Firebase Storage
+        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
+        pseudocode_blob.upload_from_filename(pseudocode_path)
+        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+
+
+        # Clean up temporary files
+        os.remove(image_path)
+        os.remove(preprocessed_image_path)
+        os.remove(output_image_path)
+        os.remove(pseudocode_path)
+    
+        return JSONResponse({
+            "status": "Success",
+            "image_url": image_url,
+            "pseudocode_url": pseudocode_url,
+            "arduino_commands": arduino_commands
+        })
 
 
 if __name__ == '__main__':
