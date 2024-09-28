@@ -743,8 +743,7 @@ async def upload_image(file: UploadFile = File(...)):
         count_symbols < 7 or
         num_terminators != 2 or 
         num_arrows <= 1 or 
-        num_arrowheads <= 1 or 
-        
+        num_arrowheads <= 1
     ):
         # Convert 
         pseudocode_result = "Error: INVALID SYNTAX"
