@@ -554,6 +554,7 @@ def convert_to_pseudocode(detections):
 
 
 
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "Move Forward Five Times": "F,5",
