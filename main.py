@@ -78,6 +78,8 @@ predefined_commands = [
 
 start_end = ["start", "end"]
 
+input_output = ["check obstacle", "display distance", "set speed to slow", "set speed to medium", "set speed to fast"]
+
 predefined_conditions = [
     "while obstacle not detected", "while line not detected", "if line detected",
     "for i in range (2)", "for i in range (3)",
