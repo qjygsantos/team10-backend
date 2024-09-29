@@ -778,7 +778,7 @@ async def upload_image(file: UploadFile = File(...)):
         return JSONResponse({
             "status": "Success",
             "image_url": image_url,
-            "pseudocode_url": "pseudocode_url",
+            "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
         })
         
