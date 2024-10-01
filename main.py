@@ -59,17 +59,12 @@ bucket = storage.bucket()
 predefined_commands = [
     "move forward",
     "move forward two times",
-    "move forward five times",
     "move backward",
     "move backward two times",
-    "move backward five times",
     "turn left",
     "turn right",
     "turn 180",
-    "spin",
-    "delay one second",
-    "delay two seconds",
-    "delay five seconds",
+    "delay",
     "drive forward",
     "drive backward",
     "stop",
@@ -78,7 +73,7 @@ predefined_commands = [
 
 start_end = ["start", "end"]
 
-input_output = ["check obstacle", "display distance", "set speed to slow", "set speed to medium", "set speed to fast"]
+input_output = ["check obstacle", "show distance", "set speed to slow", "set speed to medium", "set speed to fast"]
 
 predefined_conditions = [
     "while obstacle not detected", "while line not detected", "if line detected",
@@ -89,7 +84,7 @@ predefined_conditions = [
 ]
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='models/best.pt')
-model.conf = 0.45  # confidence threshold (0-1)
+model.conf = 0.35  # confidence threshold (0-1)
 model.iou = 0.7
 def preprocess_image(image_path):
     # Convert the image to grayscale
@@ -261,7 +256,7 @@ def detect_diagram(image_path):
                               detection['elbow_bottom_curved'] = True
                               detection['pos'] -= 100
     # Apply NMS 
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.45, nms_threshold=0.7)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.35, nms_threshold=0.7)
 
     # Make sure indices are correct
     if len(indices) > 0:
