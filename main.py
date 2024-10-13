@@ -314,7 +314,7 @@ def detect_diagram(image_path):
     return filtered_results
 
 
-def match_text_with_commands(self, text, symbol_type=None):
+def match_text_with_commands(text, symbol_type=None):
     normalized_text = text.strip().lower()
 
     if normalized_text == "no text detected":
