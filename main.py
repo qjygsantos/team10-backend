@@ -58,9 +58,7 @@ db = firestore.client()
 bucket = storage.bucket()
 predefined_commands = [
     "move forward",
-    "move forward two times",
     "move backward",
-    "move backward two times",
     "turn left",
     "turn right",
     "turn 180",
@@ -73,7 +71,7 @@ predefined_commands = [
 
 start_end = ["start", "end"]
 
-input_output = ["check obstacle", "show distance", "set speed to slow", "set speed to medium", "set speed to fast"]
+input_output = ["check obstacle", "set speed to slow", "set speed to medium", "set speed to fast"]
 
 predefined_conditions = [
     "while obstacle not detected", "while line not detected", "if line detected",
@@ -84,8 +82,8 @@ predefined_conditions = [
 ]
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='models/best.pt')
-model.conf = 0.35  # confidence threshold (0-1)
-model.iou = 0.7
+model.conf = 0.3  # confidence threshold (0-1)
+model.iou = 0.8
 def preprocess_image(image_path):
     # Convert the image to grayscale
     image = cv2.imread(image_path)
@@ -255,10 +253,11 @@ def detect_diagram(image_path):
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_bottom_curved'] = True
                               detection['pos'] -= 100
-    # Apply NMS 
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.35, nms_threshold=0.7)
+                                   
+            # Apply NMS
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.8)
 
-    # Make sure indices are correct
+    # Make sure indices are crrect
     if len(indices) > 0:
         indices = indices.flatten()
         filtered_results = [detection_result[i] for i in indices]
@@ -315,37 +314,37 @@ def detect_diagram(image_path):
     return filtered_results
 
 
-def match_text_with_commands(text, symbol_type=None):
+def match_text_with_commands(self, text, symbol_type=None):
     normalized_text = text.strip().lower()
 
     if normalized_text == "no text detected":
         return None
 
-    # Combine predefined commands and conditions
-    all_predefined = predefined_commands + predefined_conditions + start_end
-
     # Initialize variables to track the best match and highest ratio
     best_match = None
     highest_ratio = 0
 
-    # Iterate through all predefined strings
-    for predefined in all_predefined:
+    # Determine the relevant predefined list based on the symbol type
+    if symbol_type == "process":
+        predefined_list = predefined_commands
+    elif symbol_type == "terminator":
+        predefined_list = start_end
+    elif symbol_type == "decision":
+        predefined_list = predefined_conditions
+    elif symbol_type == "data":
+        predefined_list = input_output
+    else:
+        return "invalid text"  # Return invalid if symbol_type is unrecognized
+
+    # Iterate through the relevant predefined strings
+    for predefined in predefined_list:
         ratio = SM(None, normalized_text, predefined).ratio()
 
         if ratio > highest_ratio:
             highest_ratio = ratio
             best_match = predefined
 
-    # Determine if the match is appropriate based on symbol type
-    if symbol_type == "process" and best_match not in predefined_commands:
-        return "invalid text"
-    if symbol_type == "terminator" and best_match not in start_end:
-        return "invalid text"
-    if symbol_type == "decision" and best_match not in predefined_conditions:
-        return "invalid text"
-    if symbol_type == "data" and best_match not in input_output:
-        return "invalid text"
-    # Return the best match if the ratio is above a certain threshold, else None
+    # Return the best match if the ratio is above a certain threshold, else invalid
     return best_match if highest_ratio >= 0.55 else "invalid text"
 
 
@@ -370,7 +369,7 @@ def print_result(detection_result, image_path):
                 x = x1
                 y = y1
 
-            if detection["type"] == "arrowhead":
+            elif detection["type"] == "arrowhead":
                 x = x2
                 y = y2
 
@@ -408,6 +407,7 @@ def print_result(detection_result, image_path):
 
 
 def convert_to_pseudocode(detections):
+    # Initialize variables
     pseudocode = []
     i = 0
     n = len(detections)
@@ -415,8 +415,6 @@ def convert_to_pseudocode(detections):
 
     # decision commands
     decision_mapping = {
-        "while obstacle not detected": "Obstacle Not Detected",
-        "while line not detected": "Line Not Detected",
         "for i in range (2)": "I IN RANGE 1 TO 2",
         "for i in range (3)": "I IN RANGE 1 TO 3",
         "for i in range (4)": "I IN RANGE 1 TO 4",
@@ -608,27 +606,16 @@ def convert_to_pseudocode(detections):
 
 def translate_pseudocode(pseudocode):
     command_mapping = {
-        "Move Forward Five Times": "F,5",
         "Move Forward": "F",
-        "Drive Forward": "DF",
-        "Move Forward Two Times": "F,2",
-        "Move Backward Five Times": "B,5",
         "Move Backward": "B",
-        "Move Backward Two Times": "B,2",
         "Turn Left": "L",
         "Turn Right": "R",
-        "Turn 180": "T,180",
-        "Turn 360": "T,360",
-        "Delay One Second": "D,1",
-        "Delay Two Seconds": "D,2",
-        "Delay Five Seconds": "D,5",
-        "Drive Backward": "R",
+        "Turn 180": "T",
+        "Delay": "D",
+        "Drive Forward": "DF",
+        "Drive Backward": "DB",
         "Stop": "S",
-        "Obstacle Not Detected": "obs",
-        "Line Not Detected": "line",
-        "Touch Sensor Not Pressed": "touch",
         "Turn On Led": "LED",
-        "Read Distance": "DST",
         "Check Obstacle": "CHK",
         "Set Speed To Slow": "SPS",
         "Set Speed To Normal": "SPN",
@@ -717,33 +704,22 @@ async def upload_image(file: UploadFile = File(...)):
     # Perform detection
     detection_result = detect_diagram(preprocessed_image_path)
     
-            # Check if the image contains a flowchart by ensuring there are at least 3 object detections
-    num_terminators = 0
-    num_arrows = 0
-    num_arrowheads = 0
-    count_symbols = len(detection_result)
-
-
-    for detection in detection_result:
-        label = detection['type']
+    # Checking Flowchart
+    
+    if (len(detection_result) < 7 
+        or detection_result[0]['type'] != 'terminator' 
+        or detection_result[-1]['type'] != 'terminator' 
+        or detection_result[1]['type'] != 'arrow' 
+        or detection_result[-2]['type'] != 'arrowhead' 
+        or detection_result[2]['type'] != 'arrowhead' 
+        or detection_result[-3]['type'] != 'arrow' 
+        or detection_result[3]['type'] not in ['data', 'process', 'decision'] 
+        or detection_result[-4]['type'] not in ['data', 'process', 'decision'] 
+        or any(detection.get('command') == 'invalid text' for detection in detection_result)):
         
-           
-        if label == 'terminator':
-            num_terminators += 1
-        elif label == 'arrow':
-            num_arrows += 1
-        elif label == 'arrowhead':
-            num_arrowheads += 1
 
-    # Check the conditions
-    if (
-        count_symbols < 7 or
-        num_terminators != 2 or 
-        num_arrows <= 1 or 
-        num_arrowheads <= 1
-    ):
         # Convert 
-        pseudocode_result = "Error: INVALID SYNTAX"
+        pseudocode_result = "There appears to be a problem with the provided input. Please try again."
         arduino_commands = ""
         
         # Save the image with detections
@@ -771,7 +747,8 @@ async def upload_image(file: UploadFile = File(...)):
         os.remove(pseudocode_path)
         
         return JSONResponse({
-            "status": "Success",
+            "status": "Failed",
+            "message": "There appears to be a problem with the provided input. Please try again.",
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
