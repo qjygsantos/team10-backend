@@ -12,3 +12,5 @@ firebase-admin
 torch
 uvicorn
 python-multipart
+ultralytics
+supervision
