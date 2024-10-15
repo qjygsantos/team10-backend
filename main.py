@@ -127,7 +127,7 @@ def detect_diagram(image_path):
     image = Image.open(image_path)
     image_cv = cv2.imread(image_path)
 
-    result = model2.predict(image, conf=0.3)[0]
+    result = model.predict(image, imgsz=640, conf=0.3)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
