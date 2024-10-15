@@ -87,7 +87,7 @@ predefined_conditions = [
 ]
 
 
-model = YOLO('models/best.pt')
+model = YOLO('models/yolov5m-98mAP.pt')
 
 def preprocess_image(image_path):
     # Convert the image to grayscale
