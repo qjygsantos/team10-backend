@@ -22,6 +22,11 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage
 import skimage.filters as filters
 import numpy as np
+import pandas as pd
+import ultralytics
+from IPython.display import Image as IPyImage
+from ultralytics import YOLO
+import supervision as sv
 
 # Ensure the necessary directories exist
 for directory in ['static/objects', 'static/detected_images']:
@@ -81,9 +86,9 @@ predefined_conditions = [
     "for i in range (8)", "for i in range (9)",
 ]
 
-model = torch.hub.load('ultralytics/yolov5', 'custom', path='models/best.pt')
-model.conf = 0.3  # confidence threshold (0-1)
-model.iou = 0.8
+
+model = YOLO('models/best.pt')
+
 def preprocess_image(image_path):
     # Convert the image to grayscale
     image = cv2.imread(image_path)
@@ -118,13 +123,29 @@ def detect_handwriting(data):
         
 
 def detect_diagram(image_path):
-    # Load image
-    image = cv2.imread(image_path)
+# Load image
+    image = Image.open(image_path)
+    image_cv = cv2.imread(image_path)
 
-    
-    results = model(image)
-    
-    detection_result_objects = results.pandas().xyxy[0]  # Use xywh format (center x, center y, width, height)
+    result = model2.predict(image, conf=0.3)[0]
+
+    boxes_np = result.boxes.xyxy.cpu().numpy()
+    confs_np = result.boxes.conf.cpu().numpy()
+    classes_np = result.boxes.cls.cpu().numpy()
+    class_names_res = [result.names[int(cls)] for cls in classes_np]  # Class names
+
+    # Create a DataFrame with the extracted data
+    data = {
+        'xmin': boxes_np[:, 0],
+        'ymin': boxes_np[:, 1],
+        'xmax': boxes_np[:, 2],
+        'ymax': boxes_np[:, 3],
+        'confidence': confs_np,
+        'class': classes_np,
+        'name': class_names_res
+    }
+
+    detection_result_objects = pd.DataFrame(data)
 
     detection_result = []
     boxes = []
@@ -169,7 +190,7 @@ def detect_diagram(image_path):
                 'confidence': confidence
             })
 
-        roi = image[y1:y2, x1:x2]
+        roi = image_cv[y1:y2, x1:x2]
         
         roi_filename = f'cropped_image_{idx}.jpg'
         roi_path = os.path.join('static/objects', roi_filename)
