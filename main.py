@@ -250,30 +250,20 @@ def detect_diagram(image_path):
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_top_left'] = True
                     # Check if arrowhead overlaps with the arrow and is in the bot half
-                    if (
-                        arrowhead['x2'] >= arrow['x1']
-                        and arrow['center_x'] >= arrowhead['x2']
-                        and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                        and arrow['height'] >= 45
-                    ):
-                        # Set elbow_top_left = True
-                        for detection in detection_result:
-                            if (detection['type'] == 'arrow' and
-                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                              detection['elbow_bottom_curved'] = True
-                              detection['pos'] -= 100
+                    
+                        
                     if (
                         arrow['x2'] >= arrowhead['x1']
                         and arrowhead['x1'] >= arrow['center_x']
                         and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                        and arrow['height'] >= 45
+                        and arrow['height'] >= 80
                     ):
                         # Set elbow_top_left = True
                         for detection in detection_result:
                             if (detection['type'] == 'arrow' and
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_bottom_curved'] = True
-                              detection['pos'] -= 100
+                              detection['pos'] -= 50
                                    
             # Apply NMS
     indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.8)
