@@ -256,7 +256,7 @@ def detect_diagram(image_path):
                         arrow['x2'] >= arrowhead['x1']
                         and arrowhead['x1'] >= arrow['center_x']
                         and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                        and arrow['height'] >= 80
+                        and abs(arrow['width'] - arrowhead['width']) > 30:
                     ):
                         # Set elbow_top_left = True
                         for detection in detection_result:
