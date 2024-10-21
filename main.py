@@ -104,12 +104,10 @@ def preprocess_image(image_path):
     x, y, w, h = cv2.boundingRect(largest_contour)
     cropped_image = warped[y:y+h, x:x+w]
     
-
-
     return cropped_image
 
 
-def detect_handwriting(data):
+def perform_OCR(data):
     client = vision.ImageAnnotatorClient()
     with open(data, 'rb') as image_file:
         content = image_file.read()
@@ -120,6 +118,39 @@ def detect_handwriting(data):
         return texts[0].description
     else:
         return "no text detected"
+
+def text_matching(text, symbol_type=None):
+    normalized_text = text.strip().lower()
+
+    if normalized_text == "no text detected":
+        return None
+
+    # Initialize variables to track the best match and highest ratio
+    best_match = None
+    highest_ratio = 0
+
+    # Determine the relevant predefined list based on the symbol type
+    if symbol_type == "process":
+        predefined_list = predefined_commands
+    elif symbol_type == "terminator":
+        predefined_list = start_end
+    elif symbol_type == "decision":
+        predefined_list = predefined_conditions
+    elif symbol_type == "data":
+        predefined_list = input_output
+    else:
+        return "invalid text"  # Return invalid if symbol_type is unrecognized
+
+    # Iterate through the relevant predefined strings
+    for predefined in predefined_list:
+        ratio = SM(None, normalized_text, predefined).ratio()
+
+        if ratio > highest_ratio:
+            highest_ratio = ratio
+            best_match = predefined
+
+    # Return the best match if the ratio is above a certain threshold, else invalid
+    return best_match if highest_ratio >= 0.55 else "invalid text"
         
 
 def detect_diagram(image_path):
@@ -127,7 +158,7 @@ def detect_diagram(image_path):
     image = Image.open(image_path)
     image_cv = cv2.imread(image_path)
 
-    result = model.predict(image, imgsz=640, conf=0.3)[0]
+    result = model.predict(image, imgsz=640, conf=0.45)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -195,11 +226,11 @@ def detect_diagram(image_path):
         roi_filename = f'cropped_image_{idx}.jpg'
         roi_path = os.path.join('static/objects', roi_filename)
         cv2.imwrite(roi_path, roi)
-        text = detect_handwriting(roi_path)
+        text = perform_OCR(roi_path)
 
         matched_command = None
         if class_name.lower() not in ['arrow', 'arrowhead']:
-            matched_command = match_text_with_commands(text, class_name.lower().replace("rotation", ""))
+            matched_command = text_matching(text, class_name.lower().replace("rotation", ""))
             
         # Store bounding boxes and confidences before applying NMS
         boxes.append([x1, y1, width, height])
@@ -220,7 +251,6 @@ def detect_diagram(image_path):
         else:
             pos = y2
 
-
         detection_with_ocr = {
             'type': class_name.lower().replace("rotation", ""),
             'coordinates': (x, y),
@@ -236,6 +266,9 @@ def detect_diagram(image_path):
         }
         detection_result.append(detection_with_ocr)
         
+    return detection_result, boxes, confidences, arrow_data
+
+def sort_results(self, detection_result, boxes, confidences, arrow_data):
     # Check for arrowhead-overlapping arrows
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
@@ -249,9 +282,8 @@ def detect_diagram(image_path):
                             if (detection['type'] == 'arrow' and
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_top_left'] = True
+                                   
                     # Check if arrowhead overlaps with the arrow and is in the bot half
-                    
-                        
                     if (
                         arrow['x2'] >= arrowhead['x1']
                         and arrowhead['x1'] >= arrow['center_x']
@@ -265,8 +297,8 @@ def detect_diagram(image_path):
                               detection['elbow_bottom_curved'] = True
                               detection['pos'] -= 50
                                    
-            # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.8)
+    # Apply NMS
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.7)
 
     # Make sure indices are crrect
     if len(indices) > 0:
@@ -323,42 +355,6 @@ def detect_diagram(image_path):
         detection["order"] = idx + 1
 
     return filtered_results
-
-
-def match_text_with_commands(text, symbol_type=None):
-    normalized_text = text.strip().lower()
-
-    if normalized_text == "no text detected":
-        return None
-
-    # Initialize variables to track the best match and highest ratio
-    best_match = None
-    highest_ratio = 0
-
-    # Determine the relevant predefined list based on the symbol type
-    if symbol_type == "process":
-        predefined_list = predefined_commands
-    elif symbol_type == "terminator":
-        predefined_list = start_end
-    elif symbol_type == "decision":
-        predefined_list = predefined_conditions
-    elif symbol_type == "data":
-        predefined_list = input_output
-    else:
-        return "invalid text"  # Return invalid if symbol_type is unrecognized
-
-    # Iterate through the relevant predefined strings
-    for predefined in predefined_list:
-        ratio = SM(None, normalized_text, predefined).ratio()
-
-        if ratio > highest_ratio:
-            highest_ratio = ratio
-            best_match = predefined
-
-    # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 0.55 else "invalid text"
-
-
 
 def print_result(detection_result, image_path):
         image = cv2.imread(image_path)
@@ -713,20 +709,21 @@ async def upload_image(file: UploadFile = File(...)):
     cv2.imwrite(preprocessed_image_path, preprocessed_img)
 
     # Perform detection
-    detection_result = detect_diagram(preprocessed_image_path)
+    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_image_path)
     
+    sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
     # Checking Flowchart
     
-    if (len(detection_result) < 7 
-        or detection_result[0]['type'] != 'terminator' 
-        or detection_result[-1]['type'] != 'terminator' 
-        or detection_result[1]['type'] != 'arrow' 
-        or detection_result[-2]['type'] != 'arrowhead' 
-        or detection_result[2]['type'] != 'arrowhead' 
-        or detection_result[-3]['type'] != 'arrow' 
-        or detection_result[3]['type'] not in ['data', 'process', 'decision'] 
-        or detection_result[-4]['type'] not in ['data', 'process', 'decision'] 
-        or any(detection.get('command') == 'invalid text' for detection in detection_result)):
+    if (len(sorted_result) < 7 
+        or sorted_result[0]['type'] != 'terminator' 
+        or sorted_result[-1]['type'] != 'terminator' 
+        or sorted_result[1]['type'] != 'arrow' 
+        or sorted_result[-2]['type'] != 'arrowhead' 
+        or sorted_result[2]['type'] != 'arrowhead' 
+        or sorted_result[-3]['type'] != 'arrow' 
+        or sorted_result[3]['type'] not in ['data', 'process', 'decision'] 
+        or sorted_result[-4]['type'] not in ['data', 'process', 'decision'] 
+        or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
         
 
         # Convert 
@@ -734,7 +731,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = ""
         
         # Save the image with detections
-        output_image_path = print_result(detection_result, image_path)
+        output_image_path = print_result(sorted_result, image_path)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -771,7 +768,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = translate_pseudocode(pseudocode_result)
     
         # Save the image with detections
-        output_image_path = print_result(detection_result, image_path)
+        output_image_path = print_result(sorted_result, image_path)
         
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
