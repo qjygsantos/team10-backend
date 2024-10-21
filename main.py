@@ -764,7 +764,7 @@ async def upload_image(file: UploadFile = File(...)):
         
     else:
         # Convert 
-        pseudocode_result = convert_to_pseudocode(detection_result)
+        pseudocode_result = convert_to_pseudocode(sorted_result)
         arduino_commands = translate_pseudocode(pseudocode_result)
     
         # Save the image with detections
