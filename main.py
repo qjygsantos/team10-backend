@@ -268,7 +268,7 @@ def detect_diagram(image_path):
         
     return detection_result, boxes, confidences, arrow_data
 
-def sort_results(self, detection_result, boxes, confidences, arrow_data):
+def sort_results(detection_result, boxes, confidences, arrow_data):
     # Check for arrowhead-overlapping arrows
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
