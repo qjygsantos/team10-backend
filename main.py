@@ -269,6 +269,7 @@ def detect_diagram(image_path):
     return detection_result, boxes, confidences, arrow_data
 
 def sort_results(detection_result, boxes, confidences, arrow_data):
+    
     # Check for arrowhead-overlapping arrows
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
@@ -311,44 +312,46 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
     filtered_results.sort(key=lambda x: x["pos"])
     
     for i in range(len(filtered_results) - 1):
-
-        if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
-                    filtered_results[i + 1]['type'] != 'arrowhead':
-                        filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-
-        #DO-WHILE Implementation
-        if i > 0 and i + 1 < len(filtered_results) and \
-                      filtered_results[i]['type'] == 'arrowhead' and \
-                      filtered_results[i + 1]['type'] == 'process' and \
-                      filtered_results[i - 1]['type'] == 'arrowhead':
-
-                removed_arrowhead = filtered_results.pop(i)
-
+        
+        if i < len(filtered_results) - 1:
+            
+            if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
+                        filtered_results[i + 1]['type'] != 'arrowhead':
+                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
+    
+            #DO-WHILE Implementation
+            if i > 0 and i + 1 < len(filtered_results) and \
+                          filtered_results[i]['type'] == 'arrowhead' and \
+                          filtered_results[i + 1]['type'] == 'process' and \
+                          filtered_results[i - 1]['type'] == 'arrowhead':
+    
+                    removed_arrowhead = filtered_results.pop(i)
+    
+                    j = i + 1
+                    while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
+                        j += 1
+    
+                    new_index = j + 2
+                    if new_index < len(filtered_results):
+                        filtered_results.insert(new_index, removed_arrowhead)
+    
+    
+            #FOR LOOP Implementation
+            if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
+                        (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
+                #find the next arrow element with width > 100
                 j = i + 1
-                while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
+                n = len(filtered_results)
+                while j < n and filtered_results[j]['elbow_top_left'] != True:
                     j += 1
-
-                new_index = j + 2
+    
+                # Remove the second arrowhead
+                removed_arrowhead = filtered_results.pop(i + 1)
+    
+                # Insert it after looping arrow
+                new_index = j
                 if new_index < len(filtered_results):
                     filtered_results.insert(new_index, removed_arrowhead)
-
-
-        #FOR LOOP Implementation
-        if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-                    (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
-            #find the next arrow element with width > 100
-            j = i + 1
-            n = len(filtered_results)
-            while j < n and filtered_results[j]['elbow_top_left'] != True:
-                j += 1
-
-            # Remove the second arrowhead
-            removed_arrowhead = filtered_results.pop(i + 1)
-
-            # Insert it after looping arrow
-            new_index = j
-            if new_index < len(filtered_results):
-                filtered_results.insert(new_index, removed_arrowhead)
 
     for idx, detection in enumerate(filtered_results):
         # Assign ID
