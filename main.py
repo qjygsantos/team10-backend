@@ -10,11 +10,10 @@ import requests
 import io
 import torch
 import PIL
-from PIL import Image
 from google.cloud import vision
 from google.oauth2 import service_account
 from google.cloud.vision_v1 import types
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import difflib
 from difflib import get_close_matches
 from difflib import SequenceMatcher as SM
@@ -706,12 +705,17 @@ async def upload_image(file: UploadFile = File(...)):
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
 
-    # Resize the image immediately after saving to reduce file size
-    base_width = 640
+    # Open the image and apply orientation correction using Exif data
     img = Image.open(image_path)
+    img = ImageOps.exif_transpose(img)  # Correct orientation based on Exif data
+
+    # Resize the image to reduce file size while maintaining aspect ratio
+    base_width = 640
     wpercent = (base_width / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
     img = img.resize((base_width, hsize), Image.Resampling.LANCZOS)
+    
+    # Save the resized image with optimization
     resized_image_path = os.path.join('static/objects', "resized_" + file.filename)
     img.save(resized_image_path, quality=85, optimize=True)  # Save optimized resized image
     
