@@ -74,7 +74,7 @@ start_end = ["start", "end"]
 
 input_output = ["check obstacle", "set speed to slow", "set speed to medium", "set speed to fast"]
 
-predefined_conditions = 
+predefined_conditions = [
     "for i in range (2)", "for i in range (3)",
     "for i in range (4)", "for i in range (5)",
     "for i in range (6)", "for i in range (7)",
