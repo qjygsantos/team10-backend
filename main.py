@@ -151,7 +151,7 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 0.55 else "invalid text"
+    return best_match if highest_ratio >= 0.45 else "invalid text"
         
 
 def detect_diagram(image_path):
@@ -696,32 +696,18 @@ async def index(request: Request):
 async def upload_image(file: UploadFile = File(...)):
     if file.filename == '':
         return JSONResponse({
-            "status": "Failed",
-            "message": "No file part",
-        })
+        "status": "Failed",
+        "message": "No file part",
+    })
 
     # Save the uploaded image
     image_path = os.path.join('static/objects', file.filename)
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
 
-    # Open the image and apply orientation correction using Exif data
-    img = Image.open(image_path)
-    img = ImageOps.exif_transpose(img)  # Correct orientation based on Exif data
+    # Preprocess
+    preprocessed_img = preprocess_image(image_path)
 
-    # Resize the image to reduce file size while maintaining aspect ratio
-    base_width = 640
-    wpercent = (base_width / float(img.size[0]))
-    hsize = int((float(img.size[1]) * float(wpercent)))
-    img = img.resize((base_width, hsize), Image.Resampling.LANCZOS)
-    
-    # Save the resized image with optimization
-    resized_image_path = os.path.join('static/objects', "resized_" + file.filename)
-    img.save(resized_image_path, quality=85, optimize=True)  # Save optimized resized image
-    
-    # Preprocess the resized image
-    preprocessed_img = preprocess_image(resized_image_path)
-    
     # Save the preprocessed image
     preprocessed_image_path = "static/objects/processed_image.jpg"
     cv2.imwrite(preprocessed_image_path, preprocessed_img)
@@ -730,86 +716,89 @@ async def upload_image(file: UploadFile = File(...)):
     detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_image_path)
     
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
-    
     # Checking Flowchart
+    
     if (len(sorted_result) < 7 
         or sorted_result[0]['type'] != 'terminator' 
         or sorted_result[-1]['type'] != 'terminator' 
-        or sorted_result[1]['type'] != 'arrow' 
-        or sorted_result[-2]['type'] != 'arrowhead' 
-        or sorted_result[2]['type'] != 'arrowhead' 
-        or sorted_result[-3]['type'] != 'arrow' 
         or sorted_result[3]['type'] not in ['data', 'process', 'decision'] 
         or sorted_result[-4]['type'] not in ['data', 'process', 'decision'] 
         or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
         
+
+        # Convert 
         pseudocode_result = "There appears to be a problem with the provided input. Please try again."
         arduino_commands = ""
-
+    
         # Save the image with detections
-        output_image_path = print_result(sorted_result, resized_image_path)
+        output_image_path = print_result(sorted_result, image_path)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
             pseudocode_file.write(pseudocode_result)
             
-        # Upload to Firebase Storage
+        # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
         blob.upload_from_filename(output_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-        
+    
+        # Upload pseudocode to Firebase Storage
         pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
         pseudocode_blob.upload_from_filename(pseudocode_path)
         pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
         # Clean up temporary files
         os.remove(image_path)
-        os.remove(resized_image_path)
         os.remove(preprocessed_image_path)
         os.remove(output_image_path)
         os.remove(pseudocode_path)
         
         return JSONResponse({
             "status": "Failed",
-            "message": "There appears to be a problem with the provided input. Please try again.",
+            "message": "There appears to be a problem with the provided input/flowchart. Please try again.",
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
         })
         
     else:
+        # Convert 
         pseudocode_result = convert_to_pseudocode(sorted_result)
         arduino_commands = translate_pseudocode(pseudocode_result)
+    
+        # Save the image with detections
+        output_image_path = print_result(sorted_result, image_path)
         
-        output_image_path = print_result(sorted_result, resized_image_path)
-        
+        # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
             pseudocode_file.write(pseudocode_result)    
             
-        # Upload to Firebase Storage
+        # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
         blob.upload_from_filename(output_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-        
+    
+        # Upload pseudocode to Firebase Storage
         pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
         pseudocode_blob.upload_from_filename(pseudocode_path)
         pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
+
         # Clean up temporary files
         os.remove(image_path)
-        os.remove(resized_image_path)
         os.remove(preprocessed_image_path)
         os.remove(output_image_path)
         os.remove(pseudocode_path)
-        
+    
         return JSONResponse({
             "status": "Success",
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
         })
+
 
 if __name__ == '__main__':
     app.run(debug=True)
