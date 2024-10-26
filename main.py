@@ -84,20 +84,15 @@ predefined_conditions = [
 
 model = YOLO('models/yolov5m-98mAP.pt')
 
-def preprocess_image(image_path):
-    # Convert the image to grayscale
-    image = cv2.imread(image_path)
+def preprocess_image(image):
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    T = threshold_local(grayscale_image, block_size=45, offset=30, method="gaussian")
+    thresholded_image = (grayscale_image > T).astype("uint8") * 255
 
-    warped = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian adaptive thresholding
-    T = threshold_local(warped, block_size=45, offset=30, method="gaussian")
-    warped = (warped > T).astype("uint8") * 255
-
-    contours, _ = cv2.findContours(warped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresholded_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     largest_contour = max(contours, key=cv2.contourArea)
     x, y, w, h = cv2.boundingRect(largest_contour)
-    cropped_image = warped[y:y+h, x:x+w]
+    cropped_image = thresholded_image[y:y+h, x:x+w]
     
     return cropped_image
 
@@ -148,12 +143,11 @@ def text_matching(text, symbol_type=None):
     return best_match if highest_ratio >= 0.45 else "invalid text"
         
 
-def detect_diagram(image_path):
+def detect_diagram(image):
 # Load image
-    image = Image.open(image_path)
-    image_cv = cv2.imread(image_path)
 
-    result = model.predict(image, imgsz=640, conf=0.32)[0]
+    image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    result = model.predict(image_pil, imgsz=640, conf=0.32)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -675,7 +669,23 @@ def translate_pseudocode(pseudocode):
     return ''.join(commands)
 
 
+def is_valid_flowchart(sorted_result):
+    if (len(sorted_result) < 7 
+        or sorted_result[0]['type'] != 'terminator' 
+        or sorted_result[-1]['type'] != 'terminator' 
+        or sorted_result[3]['type'] not in ['data', 'process', 'decision'] 
+        or sorted_result[-4]['type'] not in ['data', 'process', 'decision'] 
+        or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
+        return False  # Invalid flowchart
 
+    return True  # Valid flowchart
+
+def resize_image(image_path, base_width):
+    img = Image.open(image_path)
+    wpercent = (base_width / float(img.size[0]))
+    hsize = int((float(img.size[1]) * float(wpercent)))
+    resized_img = img.resize((base_width, hsize), Image.Resampling.LANCZOS)
+    return resized_img
 
 @app.get("/")
 async def index(request: Request):
@@ -689,38 +699,34 @@ async def upload_image(file: UploadFile = File(...)):
         "message": "No file part",
     })
 
-    # Save the uploaded image
     image_path = os.path.join('static/objects', file.filename)
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
+        
+    original_image = cv2.imread(image_path)
 
     # Preprocess
-    preprocessed_img = preprocess_image(image_path)
+    preprocessed_img = preprocess_image(original_image)
 
     # Save the preprocessed image
-    preprocessed_image_path = "static/objects/processed_image.jpg"
-    cv2.imwrite(preprocessed_image_path, preprocessed_img)
+    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
 
-    # Perform detection
-    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_image_path)
-    
+    # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
-    # Checking Flowchart
-    
-    if (len(sorted_result) < 7 
-        or sorted_result[0]['type'] != 'terminator' 
-        or sorted_result[-1]['type'] != 'terminator' 
-        or sorted_result[3]['type'] not in ['data', 'process', 'decision'] 
-        or sorted_result[-4]['type'] not in ['data', 'process', 'decision'] 
-        or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
-        
 
-        # Convert 
+
+    # Checking Flowchart
+    if not is_valid_flowchart(sorted_result):
+        
         pseudocode_result = "There appears to be a problem with the provided input. Please try again."
         arduino_commands = ""
+
+        resized_image = resize_image(original_image, 640)
+        resized_image_path = "static/objects/resized_image.jpg"
+        cv2.imwrite(resized_image_path, resized_image)
     
         # Save the image with detections
-        output_image_path = print_result(sorted_result, image_path)
+        output_image_path = print_result(sorted_result, resized_image_path)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -755,9 +761,14 @@ async def upload_image(file: UploadFile = File(...)):
         # Convert 
         pseudocode_result = convert_to_pseudocode(sorted_result)
         arduino_commands = translate_pseudocode(pseudocode_result)
+
+        # Resize
+        resized_image = resize_image(original_image, 640)
+        resized_image_path = "static/objects/resized_image.jpg"
+        cv2.imwrite(resized_image_path, resized_image)
     
         # Save the image with detections
-        output_image_path = print_result(sorted_result, image_path)
+        output_image_path = print_result(sorted_result, resized_image_path)
         
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -773,7 +784,6 @@ async def upload_image(file: UploadFile = File(...)):
         pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
         pseudocode_blob.upload_from_filename(pseudocode_path)
         pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
-
 
         # Clean up temporary files
         os.remove(image_path)
