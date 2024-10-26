@@ -67,11 +67,6 @@ predefined_commands = [
     "move backward",
     "turn left",
     "turn right",
-    "turn 180",
-    "delay",
-    "drive forward",
-    "drive backward",
-    "stop",
     "turn on led"
 ]
 
@@ -79,8 +74,7 @@ start_end = ["start", "end"]
 
 input_output = ["check obstacle", "set speed to slow", "set speed to medium", "set speed to fast"]
 
-predefined_conditions = [
-    "while obstacle not detected", "while line not detected", "if line detected",
+predefined_conditions = 
     "for i in range (2)", "for i in range (3)",
     "for i in range (4)", "for i in range (5)",
     "for i in range (6)", "for i in range (7)",
@@ -159,7 +153,7 @@ def detect_diagram(image_path):
     image = Image.open(image_path)
     image_cv = cv2.imread(image_path)
 
-    result = model.predict(image, imgsz=640, conf=0.4)[0]
+    result = model.predict(image, imgsz=640, conf=0.32)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -297,7 +291,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             if (detection['type'] == 'arrow' and
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_bottom_curved'] = True
-                              detection['pos'] -= 50
+                            
                                    
     # Apply NMS
     indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.7)
@@ -621,11 +615,6 @@ def translate_pseudocode(pseudocode):
         "Move Backward": "B",
         "Turn Left": "L",
         "Turn Right": "R",
-        "Turn 180": "T",
-        "Delay": "D",
-        "Drive Forward": "DF",
-        "Drive Backward": "DB",
-        "Stop": "S",
         "Turn On Led": "LED",
         "Check Obstacle": "CHK",
         "Set Speed To Slow": "SPS",
