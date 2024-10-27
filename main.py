@@ -11,24 +11,24 @@ import requests
 import io
 import torch
 import PIL
+import difflib
+import numpy as np
+import pandas as pd
+import ultralytics
+import supervision as sv
+import skimage.filters as filters
 from google.cloud import vision
 from google.oauth2 import service_account
 from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-import difflib
 from difflib import get_close_matches
 from difflib import SequenceMatcher as SM
-from skimage.filters import threshold_local
-import datetime
+from skimage.filters import threshold_otsu, threshold_localimport datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
-import skimage.filters as filters
-import numpy as np
-import pandas as pd
-import ultralytics
 from IPython.display import Image as IPyImage
 from ultralytics import YOLO
-import supervision as sv
+from fuzzywuzzy import fuzz
 
 # Ensure the necessary directories exist
 for directory in ['static/objects', 'static/detected_images']:
@@ -87,10 +87,10 @@ model = YOLO('models/yolov5m-98mAP.pt')
 
 def preprocess_image(image):
     grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    T = threshold_local(grayscale_image, block_size=45, offset=30, method="gaussian")
-    thresholded_image = (grayscale_image > T).astype("uint8") * 255
+    thresh = cv2.adaptiveThreshold(grayscale_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
 
-    contours, _ = cv2.findContours(thresholded_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     largest_contour = max(contours, key=cv2.contourArea)
     x, y, w, h = cv2.boundingRect(largest_contour)
     cropped_image = thresholded_image[y:y+h, x:x+w]
@@ -134,21 +134,20 @@ def text_matching(text, symbol_type=None):
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
-        ratio = SM(None, normalized_text, predefined).ratio()
-
+        ratio = fuzz.WRatio(predefined, normalized_text)
         if ratio > highest_ratio:
             highest_ratio = ratio
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 0.45 else "invalid text"
+    return best_match if highest_ratio >= 40 else "invalid text"
         
 
 def detect_diagram(image):
 # Load image
 
     gray_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(gray_img_3channel, imgsz=640, conf=0.32)[0]
+    result = model.predict(gray_img_3channel, imgsz=640, conf=0.39)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -265,15 +264,6 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
         if arrow['type'] == 'arrow':
             for arrowhead in arrow_data:
                 if arrowhead['type'] == 'arrowhead':
-                    # Check if arrowhead overlaps with the arrow and is in the top half
-                    if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
-                                      arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
-                        # Set elbow_top_left = True
-                        for detection in detection_result:
-                            if (detection['type'] == 'arrow' and
-                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                              detection['elbow_top_left'] = True
-                                   
                     # Check if arrowhead overlaps with the arrow and is in the bot half
                     if (
                         arrow['x2'] >= arrowhead['x1']
@@ -281,15 +271,27 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                         and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
                         and abs(arrow['width'] - arrowhead['width']) > 30
                     ):
+                        # Set elbow_bottom_curved = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_bottom_curved'] = True
+
+
+                    # Check if arrowhead overlaps with the arrow and is in the top half
+                    elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
+                                      arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
+                                      not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
+                                              for d in detection_result)):
                         # Set elbow_top_left = True
                         for detection in detection_result:
                             if (detection['type'] == 'arrow' and
-                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                              detection['elbow_bottom_curved'] = True
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_top_left'] = True
                             
                                    
     # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.7)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.8)
 
     # Make sure indices are crrect
     if len(indices) > 0:
@@ -308,7 +310,9 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
             if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
                         filtered_results[i + 1]['type'] != 'arrowhead':
                             filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-    
+                            
+            if filtered_results[i]['elbow_bottom_curved'] == True and filtered_results[i - 1]['type'] == 'arrow':
+                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]  
             #DO-WHILE Implementation
             if i > 0 and i + 1 < len(filtered_results) and \
                           filtered_results[i]['type'] == 'arrowhead' and \
@@ -326,23 +330,22 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                         filtered_results.insert(new_index, removed_arrowhead)
     
     
-            #FOR LOOP Implementation
+              #FOR and WHILE LOOP Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
                         (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
-                #find the next arrow element with width > 100
+                  #find the next arrow element with width > 100
                 j = i + 1
                 n = len(filtered_results)
-                while j < n and filtered_results[j]['elbow_top_left'] != True:
+                while j < n and filtered_results[j]['elbow_top_left'] != True and filtered_results[j]['elbow_bottom_curved'] != True:
                     j += 1
-    
+
                 # Remove the second arrowhead
                 removed_arrowhead = filtered_results.pop(i + 1)
-    
-                # Insert it after looping arrow
                 new_index = j
+
                 if new_index < len(filtered_results):
                     filtered_results.insert(new_index, removed_arrowhead)
-
+                    
     for idx, detection in enumerate(filtered_results):
         # Assign ID
         detection["order"] = idx + 1
@@ -354,7 +357,7 @@ def print_result(detection_result, image_path):
         image_height, image_width = image.shape[:2]
 
         # Base scale for text
-        base_scale = 0.0006  # Experiment with this value as needed
+        base_scale = 1  # Experiment with this value as needed
 
         print("Inference Results with OCR:")
         for detection in detection_result:
@@ -381,36 +384,36 @@ def print_result(detection_result, image_path):
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
             label = f"{detection['order']}. {detection['type']}"
             if detection['command']:
                 label += f" ({detection['command']})"
 
             # Calculate font scale based on image dimensions
-            font_scale = base_scale * max(image_width, image_height)
-            thickness = max(1, int(font_scale * 2))  # Adjust thickness based on font scale
+            font_scale = min(image_width,image_height)/(25/base_scale)
+            
 
             # Draw text on the image
             if detection['type'] == "arrowhead":
-                cv2.putText(image, label, (x1 - 12, y1 + 30), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
             elif detection['type'] == "terminator" and detection['command'] == "end":
-                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
+            elif detection['type'] == "arrow":
+                cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
             elif detection['type'] == "decision":
-                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
             else:
-                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 255), thickness)
+                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
 
         output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
         cv2.imwrite(output_image_path, image)
         return output_image_path
 
 
-
-
 def convert_to_pseudocode(detections):
     start_time = time.time()
-    max_time = 10
+    max_time = 5
     # Initialize variables
     pseudocode = []
     i = 0
@@ -458,7 +461,7 @@ def convert_to_pseudocode(detections):
             detections[j + 1]['elbow_top_left'] == True:
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
                 if command != "invalid text":
-                    pseudocode.append(f"    {command}")    
+                    pseudocode.append(f"    {command}")
 
                 k = j - 1
                 if decision_command != "invalid text":
@@ -512,7 +515,7 @@ def convert_to_pseudocode(detections):
 
                 i = j  # Skip to after the decision block
 
-            # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
+            # If the next symbol is a decision with an arrow connected - FOR LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("for") and \
             detections[j + 1]['elbow_top_left'] == False:
@@ -525,7 +528,7 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    FOR {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
-                while j < n and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+                while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
 
                     if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
@@ -535,22 +538,33 @@ def convert_to_pseudocode(detections):
                             pseudocode.append(f"        {command}")
                         j += 1
 
-    
-                j += 2
-                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']: 
-                    j += 1
-                if j < len(detections): 
-                    command = capitalize_words(detections[j]['command'])
-        
-                    pseudocode.append(f"        {command}")
-                    pseudocode.append("    END FOR")
- 
+                if detections[j]['elbow_top_left'] == True:
+
+                    j += 2  
+                    while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+                    if j < len(detections):
+                        command = capitalize_words(detections[j]['command'])
+
+                        pseudocode.append(f"        {command}")
+                        pseudocode.append("    END FOR")
+                    else:
+                        pseudocode.append("    END FOR")
+
+                    i = j  # Skip to after the decision block
+
+                elif detections[j]['elbow_bottom_curved'] == True:
+                    j -= 1
                     
-                i = j  # Skip to after the decision block
+                    while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+                    if j < len(detections):
+                        pseudocode.append("    END FOR")
+                    else:
+                        pseudocode.append("    END FOR")
 
+                    i = j  # Skip to after the decision block
 
-
-            
             else:
                 if command != "invalid text":
                     pseudocode.append(f"    {command}")
@@ -566,7 +580,7 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"    FOR {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+            while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
 
                 if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
@@ -575,18 +589,33 @@ def convert_to_pseudocode(detections):
                     if command != "invalid text":
                         pseudocode.append(f"        {command}")
                     j += 1
- 
-            j += 2
-            while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']: 
-                j += 1
-            if j < len(detections): 
-                command = capitalize_words(detections[j]['command'])
-    
-                pseudocode.append(f"        {command}")
-                pseudocode.append("    END FOR")
 
+            if detections[j]['elbow_top_left'] == True:
+
+                j += 2  
+                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+                if j < len(detections):
+                    command = capitalize_words(detections[j]['command'])
+
+                    pseudocode.append(f"        {command}")
+                    pseudocode.append("    END FOR")
+                else:
+                    pseudocode.append("    END FOR")
+
+                i = j  # Skip to after the decision block
+
+            elif detections[j]['elbow_bottom_curved'] == True:
+                j -= 1
                 
-            i = j  # Skip to after the decision block
+                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+                if j < len(detections):
+                    pseudocode.append("    END FOR")
+                else:
+                    pseudocode.append("    END FOR")
+
+                i = j  # Skip to after the decision block
 
         elif element['type'] == 'decision' and \
         element['command'] in ["while obstacle not detected"]:
@@ -607,7 +636,7 @@ def convert_to_pseudocode(detections):
                     j += 1
 
             j += 2
-            
+
             command = capitalize_words(detections[j]['command'])
             if decision_command != "invalid text":
                 pseudocode.append(f"        {command}")
@@ -726,7 +755,7 @@ async def upload_image(file: UploadFile = File(...)):
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
 
-    resized_image = resize_image(image_path, 1080)
+    resized_image = resize_image(image_path, 1280)
     resized_image_path = "static/objects/resized_image.jpg"
     cv2.imwrite(resized_image_path, resized_image)
     
@@ -745,7 +774,7 @@ async def upload_image(file: UploadFile = File(...)):
     # Checking Flowchart
     if not is_valid_flowchart(sorted_result):
         
-        pseudocode_result = "There appears to be a problem with the provided input. Please try again."
+        pseudocode_result = "Certain symbols were not recognized properly. Please double-check your input and try again!"
         arduino_commands = ""
 
         # Save the image with detections
@@ -774,7 +803,7 @@ async def upload_image(file: UploadFile = File(...)):
         
         return JSONResponse({
             "status": "Failed",
-            "message": "There appears to be a problem with the provided input/flowchart. Please try again.",
+            "message": "Certain symbols were not recognized properly. Please double-check your input and try again!",
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
