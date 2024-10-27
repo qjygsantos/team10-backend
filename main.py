@@ -684,8 +684,11 @@ def resize_image(image_path, base_width):
     img = Image.open(image_path)
     wpercent = (base_width / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
-    resized_img = img.resize((base_width, hsize), Image.Resampling.LANCZOS)
-    return resized_img
+    resized_img = img.resize((base_width, hsize), PIL.Image.Resampling.LANCZOS)
+
+    # Convert the PIL image to a NumPy array
+    resized_img_np = np.array(resized_img)
+    return resized_img_np
 
 @app.get("/")
 async def index(request: Request):
