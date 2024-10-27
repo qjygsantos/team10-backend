@@ -721,7 +721,7 @@ async def upload_image(file: UploadFile = File(...)):
         pseudocode_result = "There appears to be a problem with the provided input. Please try again."
         arduino_commands = ""
 
-        resized_image = resize_image(original_image, 640)
+        resized_image = resize_image(image_path, 640)
         resized_image_path = "static/objects/resized_image.jpg"
         cv2.imwrite(resized_image_path, resized_image)
     
@@ -763,7 +763,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = translate_pseudocode(pseudocode_result)
 
         # Resize
-        resized_image = resize_image(original_image, 640)
+        resized_image = resize_image(image_path, 640)
         resized_image_path = "static/objects/resized_image.jpg"
         cv2.imwrite(resized_image_path, resized_image)
     
