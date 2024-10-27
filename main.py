@@ -528,14 +528,20 @@ def convert_to_pseudocode(detections):
                         if command != "invalid text":
                             pseudocode.append(f"        {command}")
                         j += 1
-
-                j += 2
-                command = capitalize_words(detections[j]['command'])
-                if command != "invalid text":
-                    pseudocode.append(f"        {command}")
-                    pseudocode.append("    END FOR")
-
+                if j + 2 < n:
+                    j += 2
+                    command = capitalize_words(detections[j]['command'])
+                    if command != "invalid text":
+                        pseudocode.append(f"        {command}")
+                        pseudocode.append("    END FOR")
+                else:
+                    break
+                    
                 i = j  # Skip to after the decision block
+
+
+
+            
             else:
                 if command != "invalid text":
                     pseudocode.append(f"    {command}")
@@ -559,13 +565,15 @@ def convert_to_pseudocode(detections):
                     if command != "invalid text":
                         pseudocode.append(f"        {command}")
                     j += 1
-
-            j += 2
-            command = capitalize_words(detections[j]['command'])
-            if command != "invalid text":
-                pseudocode.append(f"        {command}")
-                pseudocode.append("    END FOR")
-
+            if j + 2 < n:
+                j += 2
+                command = capitalize_words(detections[j]['command'])
+                if command != "invalid text":
+                    pseudocode.append(f"        {command}")
+                    pseudocode.append("    END FOR")
+            else:
+                break
+                
             i = j  # Skip to after the decision block
 
         elif element['type'] == 'decision' and \
