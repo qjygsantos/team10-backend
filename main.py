@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import os
+import time
 import json
 import tempfile
 import cv2
@@ -405,7 +406,11 @@ def print_result(detection_result, image_path):
         return output_image_path
 
 
+
+
 def convert_to_pseudocode(detections):
+    start_time = time.time()
+    max_time = 10
     # Initialize variables
     pseudocode = []
     i = 0
@@ -520,7 +525,8 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    FOR {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
-                while j < n and detections[j]['elbow_top_left'] != True:
+                while j < n and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+
                     if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
                     elif j < n and detections[j]['type'] in ['process', 'data']:
@@ -528,14 +534,17 @@ def convert_to_pseudocode(detections):
                         if command != "invalid text":
                             pseudocode.append(f"        {command}")
                         j += 1
-                if j + 2 < n:
-                    j += 2
+
+    
+                j += 2
+                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']: 
+                    j += 1
+                if j < len(detections): 
                     command = capitalize_words(detections[j]['command'])
-                    if command != "invalid text":
-                        pseudocode.append(f"        {command}")
-                        pseudocode.append("    END FOR")
-                else:
-                    break
+        
+                    pseudocode.append(f"        {command}")
+                    pseudocode.append("    END FOR")
+ 
                     
                 i = j  # Skip to after the decision block
 
@@ -557,7 +566,8 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"    FOR {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and detections[j]['elbow_top_left'] != True:
+            while j < n and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+
                 if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
@@ -565,14 +575,16 @@ def convert_to_pseudocode(detections):
                     if command != "invalid text":
                         pseudocode.append(f"        {command}")
                     j += 1
-            if j + 2 < n:
-                j += 2
+ 
+            j += 2
+            while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']: 
+                j += 1
+            if j < len(detections): 
                 command = capitalize_words(detections[j]['command'])
-                if command != "invalid text":
-                    pseudocode.append(f"        {command}")
-                    pseudocode.append("    END FOR")
-            else:
-                break
+    
+                pseudocode.append(f"        {command}")
+                pseudocode.append("    END FOR")
+
                 
             i = j  # Skip to after the decision block
 
@@ -595,6 +607,7 @@ def convert_to_pseudocode(detections):
                     j += 1
 
             j += 2
+            
             command = capitalize_words(detections[j]['command'])
             if decision_command != "invalid text":
                 pseudocode.append(f"        {command}")
