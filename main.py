@@ -25,7 +25,7 @@ from google.cloud.vision_v1 import types
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from difflib import get_close_matches
 from difflib import SequenceMatcher as SM
-from skimage.filters import threshold_otsu, threshold_localimport datetime
+from skimage.filters import threshold_otsu, threshold_localimport
 from firebase_admin import credentials, firestore, storage
 from IPython.display import Image as IPyImage
 from ultralytics import YOLO
