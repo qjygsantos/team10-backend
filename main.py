@@ -408,6 +408,8 @@ def print_result(detection_result, image_path):
         return output_image_path
 
 
+import time
+
 def convert_to_pseudocode(detections):
     start_time = time.time()
     max_time = 5
@@ -538,31 +540,38 @@ def convert_to_pseudocode(detections):
                 if detections[j]['elbow_top_left'] == True:
 
                     j += 2  
+
                     while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
+
                     if j < len(detections):
                         command = capitalize_words(detections[j]['command'])
-
                         pseudocode.append(f"        {command}")
                         pseudocode.append("    END FOR")
+
                     else:
                         pseudocode.append("    END FOR")
 
                     i = j  # Skip to after the decision block
 
                 elif detections[j]['elbow_bottom_curved'] == True:
+
                     j -= 1
                     
                     while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
+
                     if j < len(detections):
                         pseudocode.append("    END FOR")
+
                     else:
                         pseudocode.append("    END FOR")
 
                     i = j  # Skip to after the decision block
+
                 else:
                     pseudocode.append("    END FOR")
+
                     i = j  # Skip to after the decision block
             else:
                 if command != "invalid text":
@@ -592,8 +601,10 @@ def convert_to_pseudocode(detections):
             if detections[j]['elbow_top_left'] == True:
 
                 j += 2  
+
                 while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
+
                 if j < len(detections):
                     command = capitalize_words(detections[j]['command'])
 
@@ -609,10 +620,15 @@ def convert_to_pseudocode(detections):
                 
                 while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
+
                 if j < len(detections):
                     pseudocode.append("    END FOR")
+
                 else:
                     pseudocode.append("    END FOR")
+                
+                i = j  # Skip to after the decision block
+                
             else:
 
                 pseudocode.append("    END FOR")
