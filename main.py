@@ -748,7 +748,7 @@ async def upload_image(file: UploadFile = File(...)):
 
         # Clean up temporary files
         os.remove(image_path)
-        os.remove(preprocessed_image_path)
+        os.remove(resized_image_path)
         os.remove(output_image_path)
         os.remove(pseudocode_path)
         
@@ -790,9 +790,9 @@ async def upload_image(file: UploadFile = File(...)):
 
         # Clean up temporary files
         os.remove(image_path)
-        os.remove(preprocessed_image_path)
         os.remove(output_image_path)
         os.remove(pseudocode_path)
+        os.remove(resized_image_path)
     
         return JSONResponse({
             "status": "Success",
