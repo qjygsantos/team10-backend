@@ -143,11 +143,11 @@ def text_matching(text, symbol_type=None):
     return best_match if highest_ratio >= 0.45 else "invalid text"
         
 
-def detect_diagram(image, image_cv):
+def detect_diagram(image):
 # Load image
 
-    
-    result = model.predict(image, imgsz=640, conf=0.32)[0]
+    gray_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
+    result = model.predict(gray_img_3channel, imgsz=640, conf=0.32)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -210,7 +210,7 @@ def detect_diagram(image, image_cv):
                 'confidence': confidence
             })
 
-        roi = image_cv[y1:y2, x1:x2]
+        roi = gray_img_3channel[y1:y2, x1:x2]
         
         roi_filename = f'cropped_image_{idx}.jpg'
         roi_path = os.path.join('static/objects', roi_filename)
@@ -709,7 +709,7 @@ async def upload_image(file: UploadFile = File(...)):
     preprocessed_img = preprocess_image(original_image)
 
     # Save the preprocessed image
-    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, original_image)
+    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
 
     # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
