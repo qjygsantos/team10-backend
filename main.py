@@ -227,13 +227,13 @@ def detect_diagram(image):
         confidences.append(confidence)
 
         if class_name.lower().replace("rotation", "") == 'decision':
-            pos = y1 + 10
+            pos = y1 + 11
 
         elif class_name == 'arrow':
             pos = y2 - 15
 
         elif class_name == 'arrowhead':
-            pos = y2
+            pos = y2 - 3
 
         elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
             pos = y2 + 10
