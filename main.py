@@ -705,11 +705,15 @@ async def upload_image(file: UploadFile = File(...)):
     image_path = os.path.join('static/objects', file.filename)
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
-        
-    original_image = cv2.imread(image_path)
+
+    resized_image = resize_image(image_path, 1080)
+    resized_image_path = "static/objects/resized_image.jpg"
+    cv2.imwrite(resized_image_path, resized_image)
+    
+    image = cv2.imread(resized_image_path)
 
     # Preprocess
-    preprocessed_img = preprocess_image(original_image)
+    preprocessed_img = preprocess_image(image)
 
     # Save the preprocessed image
     detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
@@ -724,10 +728,6 @@ async def upload_image(file: UploadFile = File(...)):
         pseudocode_result = "There appears to be a problem with the provided input. Please try again."
         arduino_commands = ""
 
-        resized_image = resize_image(image_path, 640)
-        resized_image_path = "static/objects/resized_image.jpg"
-        cv2.imwrite(resized_image_path, resized_image)
-    
         # Save the image with detections
         output_image_path = print_result(sorted_result, resized_image_path)
 
@@ -764,11 +764,6 @@ async def upload_image(file: UploadFile = File(...)):
         # Convert 
         pseudocode_result = convert_to_pseudocode(sorted_result)
         arduino_commands = translate_pseudocode(pseudocode_result)
-
-        # Resize
-        resized_image = resize_image(image_path, 640)
-        resized_image_path = "static/objects/resized_image.jpg"
-        cv2.imwrite(resized_image_path, resized_image)
     
         # Save the image with detections
         output_image_path = print_result(sorted_result, resized_image_path)
