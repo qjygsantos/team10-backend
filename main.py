@@ -146,8 +146,8 @@ def text_matching(text, symbol_type=None):
 def detect_diagram(image, image_cv):
 # Load image
 
-    image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    result = model.predict(image_pil, imgsz=640, conf=0.32)[0]
+    
+    result = model.predict(image, imgsz=640, conf=0.32)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
