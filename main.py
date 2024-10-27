@@ -674,7 +674,6 @@ def is_valid_flowchart(sorted_result):
         or sorted_result[0]['type'] != 'terminator' 
         or sorted_result[-1]['type'] != 'terminator' 
         or sorted_result[3]['type'] not in ['data', 'process', 'decision'] 
-        or sorted_result[-4]['type'] not in ['data', 'process', 'decision'] 
         or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
         return False  # Invalid flowchart
 
