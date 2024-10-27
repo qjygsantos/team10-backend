@@ -143,7 +143,7 @@ def detect_diagram(image):
 # Load image
 
     gray_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(gray_img_3channel, imgsz=640, conf=0.39)[0]
+    result = model.predict(gray_img_3channel, conf=0.39, iou=0.8)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -287,7 +287,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             
                                    
     # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.8)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.39, nms_threshold=0.8)
 
     # Make sure indices are crrect
     if len(indices) > 0:
@@ -353,7 +353,7 @@ def print_result(detection_result, image_path):
         image_height, image_width = image.shape[:2]
 
         # Base scale for text
-        base_scale = 1  # Experiment with this value as needed
+        base_scale = 0.04  # Experiment with this value as needed
 
         print("Inference Results with OCR:")
         for detection in detection_result:
@@ -387,7 +387,8 @@ def print_result(detection_result, image_path):
                 label += f" ({detection['command']})"
 
             # Calculate font scale based on image dimensions
-            font_scale = min(image_width,image_height)/(25/base_scale)
+                            # Calculate font scale based on image dimensions
+            font_scale = ((image_width*1.25+image_height*0.75)/2)/(50/base_scale)
             
 
             # Draw text on the image
@@ -560,7 +561,9 @@ def convert_to_pseudocode(detections):
                         pseudocode.append("    END FOR")
 
                     i = j  # Skip to after the decision block
-
+                else:
+                    pseudocode.append("    END FOR")
+                    i = j  # Skip to after the decision block
             else:
                 if command != "invalid text":
                     pseudocode.append(f"    {command}")
@@ -610,6 +613,9 @@ def convert_to_pseudocode(detections):
                     pseudocode.append("    END FOR")
                 else:
                     pseudocode.append("    END FOR")
+            else:
+
+                pseudocode.append("    END FOR")
 
                 i = j  # Skip to after the decision block
 
@@ -751,7 +757,7 @@ async def upload_image(file: UploadFile = File(...)):
     with open(image_path, "wb") as buffer:
         buffer.write(await file.read())
 
-    resized_image = resize_image(image_path, 1280)
+    resized_image = resize_image(image_path, 640)
     resized_image_path = "static/objects/resized_image.jpg"
     cv2.imwrite(resized_image_path, resized_image)
     
