@@ -143,7 +143,7 @@ def text_matching(text, symbol_type=None):
     return best_match if highest_ratio >= 0.45 else "invalid text"
         
 
-def detect_diagram(image):
+def detect_diagram(image, image_cv):
 # Load image
 
     image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
@@ -709,7 +709,7 @@ async def upload_image(file: UploadFile = File(...)):
     preprocessed_img = preprocess_image(original_image)
 
     # Save the preprocessed image
-    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
+    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, original_image)
 
     # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
