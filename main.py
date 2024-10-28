@@ -93,11 +93,9 @@ def preprocess_image(image):
     return thresh
 
 
-def perform_OCR(data):
+def perform_OCR(image_bytes):
     client = vision.ImageAnnotatorClient()
-    with open(data, 'rb') as image_file:
-        content = image_file.read()
-    image = types.Image(content=content)
+    image = vision.Image(content=image_bytes)  # Use vision.Image directly
     response = client.document_text_detection(image=image)
     texts = response.text_annotations
     if texts:
@@ -206,11 +204,10 @@ def detect_diagram(image):
             })
 
         roi = gray_img_3channel[y1:y2, x1:x2]
-        
-        roi_filename = f'cropped_image_{idx}.jpg'
-        roi_path = os.path.join('static/objects', roi_filename)
-        cv2.imwrite(roi_path, roi)
-        text = perform_OCR(roi_path)
+        _, encoded_image = cv2.imencode('.jpg', roi)
+        image_bytes = encoded_image.tobytes()
+
+        text = perform_OCR(image_bytes)
 
         matched_command = None
         if class_name.lower() not in ['arrow', 'arrowhead']:
@@ -250,7 +247,7 @@ def detect_diagram(image):
         }
         detection_result.append(detection_with_ocr)
         
-    return detection_result, boxes, confidences, arrow_data
+    return result, detection_result, boxes, confidences, arrow_data
 
 def sort_results(detection_result, boxes, confidences, arrow_data):
     
@@ -413,8 +410,20 @@ def print_result(detection_result, image_path):
         cv2.imwrite(output_image_path, image)
         return output_image_path
 
+def print_result_with_ocr(result, image_path):
+            detections = sv.Detections.from_ultralytics(result)
 
-import time
+            box_annotator = sv.BoxAnnotator()
+            label_annotator = sv.LabelAnnotator(text_color=sv.Color.BLACK)
+
+            # Use the image_path variable instead of the literal string 'image_path'
+            annotated_image = Image.open(image_path)
+            annotated_image = box_annotator.annotate(annotated_image, detections=detections)
+            annotated_image = label_annotator.annotate(annotated_image, detections=detections)
+
+            annotated_image.save(image_path)
+            return image_path
+
 
 def convert_to_pseudocode(detections):
     start_time = time.time()
@@ -788,7 +797,7 @@ async def upload_image(file: UploadFile = File(...)):
     preprocessed_img = preprocess_image(image)
 
     # Save the preprocessed image
-    detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
+    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
 
     # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
@@ -801,7 +810,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = ""
 
         # Save the image with detections
-        output_image_path = print_result(sorted_result, resized_image_path)
+        resized_image_path = print_result_with_ocr(result, resized_image_path)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -809,8 +818,8 @@ async def upload_image(file: UploadFile = File(...)):
             pseudocode_file.write(pseudocode_result)
             
         # Upload image with detections to Firebase Storage
-        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-        blob.upload_from_filename(output_image_path)
+        blob = bucket.blob(f'detected_images/{os.path.basename(resized_image_path)}')
+        blob.upload_from_filename(resized_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
     
         # Upload pseudocode to Firebase Storage
@@ -821,7 +830,6 @@ async def upload_image(file: UploadFile = File(...)):
         # Clean up temporary files
         os.remove(image_path)
         os.remove(resized_image_path)
-        os.remove(output_image_path)
         os.remove(pseudocode_path)
         
         return JSONResponse({
@@ -838,7 +846,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = translate_pseudocode(pseudocode_result)
     
         # Save the image with detections
-        output_image_path = print_result(sorted_result, resized_image_path)
+        resized_image_path = print_result_with_ocr(result, resized_image_path)
         
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -846,8 +854,8 @@ async def upload_image(file: UploadFile = File(...)):
             pseudocode_file.write(pseudocode_result)    
             
         # Upload image with detections to Firebase Storage
-        blob = bucket.blob(f'detected_images/{os.path.basename(output_image_path)}')
-        blob.upload_from_filename(output_image_path)
+        blob = bucket.blob(f'detected_images/{os.path.basename(resized_image_path)}')
+        blob.upload_from_filename(resized_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
     
         # Upload pseudocode to Firebase Storage
@@ -857,7 +865,6 @@ async def upload_image(file: UploadFile = File(...)):
 
         # Clean up temporary files
         os.remove(image_path)
-        os.remove(output_image_path)
         os.remove(pseudocode_path)
         os.remove(resized_image_path)
     
