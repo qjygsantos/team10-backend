@@ -68,8 +68,7 @@ predefined_commands = [
     "move forward",
     "move backward",
     "turn left",
-    "turn right",
-    "turn on led"
+    "turn right"
 ]
 
 start_end = ["start", "end"]
@@ -677,7 +676,6 @@ def translate_pseudocode(pseudocode):
         "Move Backward": "B",
         "Turn Left": "L",
         "Turn Right": "R",
-        "Turn On Led": "LED",
         "Check Obstacle": "CHK",
         "Set Speed To Slow": "SPS",
         "Set Speed To Normal": "SPN",
@@ -741,7 +739,6 @@ def is_valid_flowchart(sorted_result):
     if (len(sorted_result) < 7 
         or sorted_result[0]['type'] != 'terminator' 
         or sorted_result[-1]['type'] != 'terminator' 
-        or sorted_result[3]['type'] not in ['data', 'process', 'decision'] 
         or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
         return False  # Invalid flowchart
 
