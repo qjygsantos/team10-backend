@@ -302,6 +302,13 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
         
         if i < len(filtered_results) - 1:
             
+            if filtered_results[i]['type'] == 'terminator' and filtered_results[i]['command'] == 'start':
+                            if i > 0:
+                                    filtered_results = filtered_results[i:]
+
+            if filtered_results[i]['type'] == 'terminator' and filtered_results[i]['command'] == 'end':
+                            filtered_results = filtered_results[:i + 1]  
+                
             if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
                         filtered_results[i + 1]['type'] != 'arrowhead':
                             filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
