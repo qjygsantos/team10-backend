@@ -427,7 +427,7 @@ def print_result_with_ocr(result, image_path):
 
 def convert_to_pseudocode(detections):
     start_time = time.time()
-    max_time = 5
+    max_time = 3
     # Initialize variables
     pseudocode = []
     i = 0
