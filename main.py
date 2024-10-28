@@ -140,7 +140,7 @@ def detect_diagram(image):
 # Load image
 
     gray_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(gray_img_3channel, conf=0.39, iou=0.8)[0]
+    result = model.predict(gray_img_3channel, conf=0.39, iou=0.55)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -283,7 +283,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             
                                    
     # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.39, nms_threshold=0.8)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.39, nms_threshold=0.55)
 
     # Make sure indices are crrect
     if len(indices) > 0:
