@@ -225,6 +225,9 @@ def detect_diagram(image):
 
         elif class_name == 'arrowhead':
             pos = y2 - 3
+            
+        elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'start':
+            pos = y1 - 10
 
         elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
             pos = y2 + 10
