@@ -140,7 +140,6 @@ def detect_diagram(image, image2):
 # Load image
 
     thresh_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    grey_img_3channel = cv2.cvtColor(image2, cv2.COLOR_GRAY2BGR)
     result = model.predict(thresh_img_3channel, conf=0.39, iou=0.78)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
@@ -204,7 +203,7 @@ def detect_diagram(image, image2):
                 'confidence': confidence
             })
 
-        roi = gray_img_3channel[y1:y2, x1:x2]
+        roi = image2[y1:y2, x1:x2]
         _, encoded_image = cv2.imencode('.jpg', roi)
         image_bytes = encoded_image.tobytes()
 
