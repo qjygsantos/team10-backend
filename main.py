@@ -133,14 +133,15 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 40 else "invalid text"
+    return best_match if highest_ratio >= 32 else "invalid text"
         
 
-def detect_diagram(image):
+def detect_diagram(image, image2):
 # Load image
 
-    gray_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(gray_img_3channel, conf=0.39, iou=0.78)[0]
+    thresh_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
+    grey_img_3channel = cv2.cvtColor(image2, cv2.COLOR_GRAY2BGR)
+    result = model.predict(thresh_img_3channel, conf=0.39, iou=0.78)[0]
 
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -274,7 +275,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
 
 
                     # Check if arrowhead overlaps with the arrow and is in the top half
-                    elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
+                    elif (arrow['center_x'] >= arrowhead['x2'] >= arrow['x1'] and
                                       arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
                                       not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
                                               for d in detection_result)):
@@ -800,7 +801,7 @@ async def upload_image(file: UploadFile = File(...)):
     preprocessed_img = preprocess_image(image)
 
     # Save the preprocessed image
-    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
+    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, image)
 
     # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
