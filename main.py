@@ -96,11 +96,9 @@ def perform_OCR(image_np):
 
         client = vision.ImageAnnotatorClient()
         # Convert the NumPy array to bytes
-        _, encoded_image = cv2.imencode('.jpg', image_np)  # Encode as JPEG
-        image_content = encoded_image.tobytes()
-
-        image2 = vision.Image(content=image_content)  
-        response = client.document_text_detection(image=image2)
+        
+        image = vision.Image(content=image_np)  
+        response = client.document_text_detection(image=image)
         texts = response.text_annotations
         return texts
 
