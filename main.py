@@ -92,17 +92,37 @@ def preprocess_image(image):
     
     return thresh
 
+def perform_OCR(image_np):
 
-def perform_OCR(image_bytes):
-    client = vision.ImageAnnotatorClient()
-    image = vision.Image(content=image_bytes)  # Use vision.Image directly
-    response = client.document_text_detection(image=image)
-    texts = response.text_annotations
-    if texts:
-        return texts[0].description
-    else:
-        return "no text detected"
+        client = vision.ImageAnnotatorClient()
+        # Convert the NumPy array to bytes
+        _, encoded_image = cv2.imencode('.jpg', image_np)  # Encode as JPEG
+        image_content = encoded_image.tobytes()
 
+        image2 = vision.Image(content=image_content)  
+        response = client.document_text_detection(image=image2)
+        texts = response.text_annotations
+        return texts
+
+def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
+
+    texts_inside_box = []
+
+    for text_annotation in ocr_data:
+        vertices = text_annotation.bounding_poly.vertices
+        # Coordinates of the OCR detected text box
+        text_x_min = min(vertex.x for vertex in vertices)
+        text_y_min = min(vertex.y for vertex in vertices)
+        text_x_max = max(vertex.x for vertex in vertices)
+        text_y_max = max(vertex.y for vertex in vertices)
+
+        # Check if text's bounding box is within the object detection box
+        if (text_x_min >= xmin and text_y_min >= ymin and text_x_max <= xmax and text_y_max <= ymax):
+            texts_inside_box.append(text_annotation.description)
+
+    return ' '.join(texts_inside_box) if texts_inside_box else "no text detected"
+
+    
 def text_matching(text, symbol_type=None):
     normalized_text = text.strip().lower()
 
@@ -136,12 +156,16 @@ def text_matching(text, symbol_type=None):
     return best_match if highest_ratio >= 32 else "invalid text"
         
 
-def detect_diagram(image, image2):
+def detect_diagram(thresh_image, raw_image):
 # Load image
 
-    thresh_img_3channel = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
+    thresh_img_3channel = cv2.cvtColor(thresh_image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
     result = model.predict(thresh_img_3channel, conf=0.39, iou=0.78)[0]
 
+    _, encoded_image = cv2.imencode('.jpg', raw_image)
+    image_bytes = encoded_image.tobytes()
+    result_ocr = perform_OCR(image_bytes)
+    
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
     classes_np = result.boxes.cls.cpu().numpy()
@@ -187,6 +211,7 @@ def detect_diagram(image, image2):
         x2 = int(x + width // 2)
         y2 = int(y + height // 2)
 
+        text = get_text_in_bounding_box(x_min, y_min, x_max, y_max, result_ocr)
         
         # Store arrow and arrowhead data 
         if class_name.lower() in ['arrow', 'arrowhead']:
@@ -203,11 +228,7 @@ def detect_diagram(image, image2):
                 'confidence': confidence
             })
 
-        roi = image2[y1:y2, x1:x2]
-        _, encoded_image = cv2.imencode('.jpg', roi)
-        image_bytes = encoded_image.tobytes()
-
-        text = perform_OCR(image_bytes)
+        
 
         matched_command = None
         if class_name.lower() not in ['arrow', 'arrowhead']:
