@@ -271,14 +271,13 @@ def detect_diagram(thresh_image, raw_image):
         
     return result, detection_result, boxes, confidences, arrow_data
 
+
 def sort_results(detection_result, boxes, confidences, arrow_data):
-    
     # Check for arrowhead-overlapping arrows
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
             for arrowhead in arrow_data:
                 if arrowhead['type'] == 'arrowhead':
-                    # Check if arrowhead overlaps with the arrow and is in the bot half
                     if (
                         arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
                         and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
@@ -289,8 +288,8 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             if (detection['type'] == 'arrow' and
                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_bottom_curved'] = True
-
-
+    
+    
                     # Check if arrowhead overlaps with the arrow and is in the top half
                     elif (arrow['x2'] >= arrowhead['x1'] >= arrow['x1'] and
                                       arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
@@ -301,32 +300,46 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             if (detection['type'] == 'arrow' and
                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_top_left'] = True
-                            
-                                   
+    
+    
     # Apply NMS
     indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.39, nms_threshold=0.78)
-
+    
     # Make sure indices are crrect
     if len(indices) > 0:
         indices = indices.flatten()
         filtered_results = [detection_result[i] for i in indices]
     else:
         filtered_results = detection_result
-     
+    
     # Sort results by assigned position
     filtered_results.sort(key=lambda x: x["pos"])
     
+    has_elbow_top_right = any(symbol.get('elbow_top_right', False) for symbol in filtered_results)  # Use .get() to handle missing keys
+    
+    if has_elbow_top_right:
+            total_x = sum(sym['coordinates'][0] for sym in filtered_results)
+            avg_center_x = total_x / len(filtered_results)
+    
+            # Step 3: Divide symbols into list1 (left side) and list2 (right side) based on their x-coordinate
+            list1 = [sym for sym in filtered_results if sym['coordinates'][0] <= avg_center_x]
+            list2 = [sym for sym in filtered_results if sym['coordinates'][0] > avg_center_x]
+    
+            # Step 4: Combine list1 and list2 to create the final reading order
+            filtered_results = list1 + list2
+    
+    
+    
     for i in range(len(filtered_results) - 1):
-        
+    
         if i < len(filtered_results) - 1:
-            
-        
+    
             if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
                         filtered_results[i + 1]['type'] != 'arrowhead':
                             filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-                            
+    
             if filtered_results[i]['elbow_bottom_curved'] == True and filtered_results[i - 1]['type'] == 'arrow':
-                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]  
+                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
             #DO-WHILE Implementation
             if i > 0 and i + 1 < len(filtered_results) and \
                           filtered_results[i]['type'] == 'arrowhead' and \
@@ -352,18 +365,18 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                 n = len(filtered_results)
                 while j < n and filtered_results[j]['elbow_top_left'] != True and filtered_results[j]['elbow_bottom_curved'] != True:
                     j += 1
-
+    
                 # Remove the second arrowhead
                 removed_arrowhead = filtered_results.pop(i + 1)
                 new_index = j
-
+    
                 if new_index < len(filtered_results):
                     filtered_results.insert(new_index, removed_arrowhead)
-                    
+    
     for idx, detection in enumerate(filtered_results):
         # Assign ID
         detection["order"] = idx + 1
-
+    
     return filtered_results
 
 def print_result(detection_result, image_path):
@@ -439,6 +452,8 @@ def print_result_with_ocr(result, image_path):
             annotated_image.save(image_path)
             return image_path
 
+
+import time
 
 def convert_to_pseudocode(detections):
     start_time = time.time()
