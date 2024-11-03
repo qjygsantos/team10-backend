@@ -96,8 +96,9 @@ def perform_OCR(image_np):
 
         client = vision.ImageAnnotatorClient()
         # Convert the NumPy array to bytes
-        
-        image = vision.Image(content=image_np)  
+        _, encoded_image = cv2.imencode('.jpg', image_np)  # Encode as JPEG
+        image_content = encoded_image.tobytes()
+        image = vision.Image(content=image_content)  
         response = client.document_text_detection(image=image)
         texts = response.text_annotations
         return texts
@@ -160,9 +161,8 @@ def detect_diagram(thresh_image, raw_image):
     thresh_img_3channel = cv2.cvtColor(thresh_image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
     result = model.predict(thresh_img_3channel, conf=0.39, iou=0.78)[0]
 
-    _, encoded_image = cv2.imencode('.jpg', raw_image)
-    image_bytes = encoded_image.tobytes()
-    result_ocr = perform_OCR(image_bytes)
+
+    result_ocr = perform_OCR(raw_image)
     
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -209,8 +209,7 @@ def detect_diagram(thresh_image, raw_image):
         x2 = int(x + width // 2)
         y2 = int(y + height // 2)
 
-        text = get_text_in_bounding_box(x_min, y_min, x_max, y_max, result_ocr)
-        
+
         # Store arrow and arrowhead data 
         if class_name.lower() in ['arrow', 'arrowhead']:
             arrow_data.append({
@@ -226,7 +225,8 @@ def detect_diagram(thresh_image, raw_image):
                 'confidence': confidence
             })
 
-        
+        text = get_text_in_bounding_box(x_min, y_min, x_max, y_max, result_ocr)
+                
 
         matched_command = None
         if class_name.lower() not in ['arrow', 'arrowhead']:
