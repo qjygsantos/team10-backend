@@ -155,14 +155,14 @@ def text_matching(text, symbol_type=None):
     return best_match if highest_ratio >= 32 else "invalid text"
         
 
-def detect_diagram(thresh_image, raw_image):
+def detect_diagram(thresh_image):
 # Load image
 
     thresh_img_3channel = cv2.cvtColor(thresh_image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
     result = model.predict(thresh_img_3channel, conf=0.39, iou=0.78)[0]
 
 
-    result_ocr = perform_OCR(raw_image)
+    result_ocr = perform_OCR(thresh_image)
     
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
@@ -827,7 +827,7 @@ async def upload_image(file: UploadFile = File(...)):
     preprocessed_img = preprocess_image(image)
 
     # Save the preprocessed image
-    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, image)
+    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img)
 
     # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
