@@ -575,7 +575,7 @@ def convert_to_pseudocode(detections):
 
                 if detections[j]['elbow_top_left'] == True:
 
-                    j += 2  
+                    j += 2
 
                     while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
@@ -593,7 +593,7 @@ def convert_to_pseudocode(detections):
                 elif detections[j]['elbow_bottom_curved'] == True:
 
                     j -= 1
-                    
+
                     while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
 
@@ -636,7 +636,7 @@ def convert_to_pseudocode(detections):
 
             if detections[j]['elbow_top_left'] == True:
 
-                j += 2  
+                j += 2
 
                 while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
@@ -653,7 +653,7 @@ def convert_to_pseudocode(detections):
 
             elif detections[j]['elbow_bottom_curved'] == True:
                 j -= 1
-                
+
                 while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
 
@@ -662,9 +662,9 @@ def convert_to_pseudocode(detections):
 
                 else:
                     pseudocode.append("    END FOR")
-                
+
                 i = j  # Skip to after the decision block
-                
+
             else:
 
                 pseudocode.append("    END FOR")
