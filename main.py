@@ -80,6 +80,7 @@ predefined_conditions = [
     "for i in range (4)", "for i in range (5)",
     "for i in range (6)", "for i in range (7)",
     "for i in range (8)", "for i in range (9)",
+    "while obstacle not detected"
 ]
 
 
@@ -474,6 +475,7 @@ def convert_to_pseudocode(detections):
         "for i in range (7)": "I IN RANGE 1 TO 7",
         "for i in range (8)": "I IN RANGE 1 TO 8",
         "for i in range (9)": "I IN RANGE 1 TO 9",
+        "while obstacle not detected": "OBSTACLE NOT DETECTED"
     }
 
     def capitalize_words(text):
@@ -715,17 +717,18 @@ def convert_to_pseudocode(detections):
 
     return "\n".join(pseudocode)
 
-
 def translate_pseudocode(pseudocode):
     command_mapping = {
+
         "Move Forward": "F",
+
         "Move Backward": "B",
+
         "Turn Left": "L",
-        "Turn Right": "R",
-        "Check Obstacle": "CHK",
-        "Set Speed To Slow": "SPS",
-        "Set Speed To Normal": "SPN",
-        "Set Speed To Fast": "SPF"
+
+        "Turn Right": "R"
+
+
     }
 
     commands = []
@@ -734,7 +737,7 @@ def translate_pseudocode(pseudocode):
     def parse_command(line):
         line = line.strip()
         # Check for exact matches
-        return f"<{command_mapping.get(line, line)}>" if line in command_mapping else None
+        return f"<{command_mapping.get(line, line)}>" if line in command_mapping else ""
 
     def format_condition(condition):
         # Use the command_mapping to get the formatted condition
@@ -761,7 +764,7 @@ def translate_pseudocode(pseudocode):
             loop_stack.append(line)
             _, condition = line.split(' ', 1)
             formatted_condition = format_condition(condition)
-            commands.append(f"<w,{formatted_condition}>")
+            commands.append(f"<w,obs>")
 
         elif line.startswith("END FOR"):
             if loop_stack:
@@ -779,6 +782,8 @@ def translate_pseudocode(pseudocode):
                 commands.append(command)
 
     return ''.join(commands)
+
+
 
 
 def is_valid_flowchart(sorted_result):
