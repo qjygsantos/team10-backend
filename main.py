@@ -289,10 +289,10 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             if (detection['type'] == 'arrow' and
                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_bottom_curved'] = True
-    
-    
+
+
                     # Check if arrowhead overlaps with the arrow and is in the top half
-                    elif (arrow['x2'] >= arrowhead['x1'] >= arrow['x1'] and
+                    elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
                                       arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
                                       not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
                                               for d in detection_result)):
@@ -301,6 +301,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
                             if (detection['type'] == 'arrow' and
                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
                               detection['elbow_top_left'] = True
+
     
     
     # Apply NMS
