@@ -910,7 +910,26 @@ async def upload_image(file: UploadFile = File(...)):
             "pseudocode_url": pseudocode_url,
             "arduino_commands": arduino_commands
         })
+        
+@app.post("/translate_pseudocode_from_file")
+async def translate_pseudocode_from_file(file: UploadFile):
+    if not file.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .txt file.")
+    
+    # Read the contents of the text file
+    contents = await file.read()
+    pseudocode = contents.decode('utf-8')  # Ensure it is decoded to a string
 
+    try:
+        # Call the function with the file content
+        arduino_commands = translate_pseudocode(pseudocode)
+        
+        return {
+            "status": "Success",
+            "arduino_commands": arduino_commands
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
     app.run(debug=True)
