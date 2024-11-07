@@ -1036,13 +1036,22 @@ def is_valid_flowchart(sorted_result):
         
         if label not in ['arrow', 'arrowhead']:
             num_symbols += 1
-            if command is None:
-                command_none_count += 1
-        if label in ['process', 'data']:
-            num_process_data += 1
-            
-        elif label == 'terminator':
-            num_terminators += 1
+
+            if label in ['process', 'data']:
+                num_process_data += 1
+                if command is None:
+                    command_none_count += 1
+                    
+            elif label == 'decision':
+                num_decision += 1
+                if command is None:
+                    command_none_count += 1
+                    
+            elif label == 'terminator':
+                num_terminators += 1
+                if command is None:
+                    command_none_count += 1
+                        
         elif label == 'arrow':
             num_arrows += 1
         elif label == 'arrowhead':
