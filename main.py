@@ -161,54 +161,54 @@ def text_matching(text, symbol_type=None):
     # Return the best match if the ratio is above a certain threshold, else invalid
     return best_match if highest_ratio >= 20 else "unrecognized text (verify manually)"
     
-    def check_arrows(self, detection_result, term_y2, arrow_data):
-        for arrow in arrow_data:
-            if arrow['type'] == 'arrow':
-                for arrowhead in arrow_data:
-                    if arrowhead['type'] == 'arrowhead':
+def check_arrows(self, detection_result, term_y2, arrow_data):
+    for arrow in arrow_data:
+        if arrow['type'] == 'arrow':
+            for arrowhead in arrow_data:
+                if arrowhead['type'] == 'arrowhead':
 
-                        if (arrow['y1'] <= term_y2 and arrowhead['y1'] <= term_y2 and arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
-                            # Set elbow_top_right = True
-                             for detection in detection_result:
-                                if (detection['type'] == 'arrow' and
-                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_top_right'] = True
-
-
-                        if (
-                            arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
-                            and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                            and abs(arrow['width'] - arrowhead['width']) > 30
-                        ):
-                            # Set elbow_bottom_curved = True
-                            for detection in detection_result:
-                                if (detection['type'] == 'arrow' and
-                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_bottom_curved'] = True
-
-                        if (
-                            (arrow['x2'] >= arrowhead['x2'] >= arrow['x1']
-                            and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                            and arrow['width'] >= arrowhead['width']*2) or (arrow['width'] >= arrow['height'])
-                        ):
-                            # Set elbow_bottom_left = True
-                            for detection in detection_result:
-                                if (detection['type'] == 'arrow' and
-                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_bottom_left'] = True
+                    if (arrow['y1'] <= term_y2 and arrowhead['y1'] <= term_y2 and arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
+                        # Set elbow_top_right = True
+                         for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_top_right'] = True
 
 
-                        elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
-                                          arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
-                                          not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
-                                                  for d in detection_result)):
-                            # Set elbow_top_left = True
-                            for detection in detection_result:
-                                if (detection['type'] == 'arrow' and
-                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                                  detection['elbow_top_left'] = True
+                    if (
+                        arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
+                        and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                        and abs(arrow['width'] - arrowhead['width']) > 30
+                    ):
+                        # Set elbow_bottom_curved = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_bottom_curved'] = True
 
-        return detection_result
+                    if (
+                        (arrow['x2'] >= arrowhead['x2'] >= arrow['x1']
+                        and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                        and arrow['width'] >= arrowhead['width']*2) or (arrow['width'] >= arrow['height'])
+                    ):
+                        # Set elbow_bottom_left = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_bottom_left'] = True
+
+
+                    elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
+                                      arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
+                                      not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
+                                              for d in detection_result)):
+                        # Set elbow_top_left = True
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                              detection['elbow_top_left'] = True
+
+    return detection_result
 
 def arrange_symbol_order(self, filtered_results):
     for i in range(len(filtered_results) - 1):
@@ -1031,7 +1031,11 @@ def is_valid_flowchart(sorted_result):
     for detection in sorted_result:
         label = detection['type']
         
-        if label in ['process', 'data']:
+        if label not in ['arrow', 'arrowhead']:
+            num_symbols += 1
+            if command is None:
+                command_none_count += 1
+        elif label in ['process', 'data']:
             num_process_data += 1
             
         elif label == 'terminator':
@@ -1047,7 +1051,8 @@ def is_valid_flowchart(sorted_result):
         len(detection_result) <= 5 or 
         num_terminators <= 1 or 
         num_arrows <= num_arrowheads*0.25 or
-        num_process_data == 0
+        num_process_data == 0 or
+        (num_symbols > 0 and command_none_count >= num_symbols / 2)
     ):
         return False  # Invalid flowchart
 
