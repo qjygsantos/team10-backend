@@ -1038,7 +1038,7 @@ def is_valid_flowchart(sorted_result):
             num_symbols += 1
             if command is None:
                 command_none_count += 1
-        elif label in ['process', 'data']:
+        if label in ['process', 'data']:
             num_process_data += 1
             
         elif label == 'terminator':
@@ -1053,7 +1053,7 @@ def is_valid_flowchart(sorted_result):
     if (
         len(sorted_result) <= 5 or 
         num_terminators <= 1 or 
-        num_arrows <= num_arrowheads*0.25 or
+        num_arrowheads <= num_arrows*0.25 or
         num_process_data == 0 or
         (num_symbols > 0 and command_none_count >= num_symbols / 2)
     ):
