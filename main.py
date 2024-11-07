@@ -161,7 +161,7 @@ def text_matching(text, symbol_type=None):
     # Return the best match if the ratio is above a certain threshold, else invalid
     return best_match if highest_ratio >= 20 else "unrecognized text (verify manually)"
     
-def check_arrows(self, detection_result, term_y2, arrow_data):
+def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
             for arrowhead in arrow_data:
@@ -210,7 +210,7 @@ def check_arrows(self, detection_result, term_y2, arrow_data):
 
     return detection_result
 
-def arrange_symbol_order(self, filtered_results):
+def arrange_symbol_order(filtered_results):
     for i in range(len(filtered_results) - 1):
 
         if i < len(filtered_results) - 1:
