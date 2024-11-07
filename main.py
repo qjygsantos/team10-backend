@@ -80,7 +80,13 @@ predefined_conditions = [
     "for i in range (4)", "for i in range (5)",
     "for i in range (6)", "for i in range (7)",
     "for i in range (8)", "for i in range (9)",
-    "while obstacle not detected"
+    "for i in range (10)", "for i in range (11)",
+    "for i in range (12)", "for i in range (13)",
+    "for i in range (14)", "for i in range (15)",
+    "for i in range (16)", "for i in range (17)",
+    "for i in range (18)", "for i in range (19)",
+    "for i in range (20)",
+    "while obstacle not detected", "if obstacle ahead"
 ]
 
 
@@ -143,7 +149,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "data":
         predefined_list = input_output
     else:
-        return "invalid text"  # Return invalid if symbol_type is unrecognized
+        return "unrecognized text (verify manually)"  # Return invalid if symbol_type is unrecognized
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
@@ -153,8 +159,105 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 32 else "invalid text"
-        
+    return best_match if highest_ratio >= 20 else "unrecognized text (verify manually)"
+    
+    def check_arrows(self, detection_result, term_y2, arrow_data):
+        for arrow in arrow_data:
+            if arrow['type'] == 'arrow':
+                for arrowhead in arrow_data:
+                    if arrowhead['type'] == 'arrowhead':
+
+                        if (arrow['y1'] <= term_y2 and arrowhead['y1'] <= term_y2 and arrow['center_y'] >= arrowhead['y2'] >= arrow['y1']):
+                            # Set elbow_top_right = True
+                             for detection in detection_result:
+                                if (detection['type'] == 'arrow' and
+                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                                  detection['elbow_top_right'] = True
+
+
+                        if (
+                            arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
+                            and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                            and abs(arrow['width'] - arrowhead['width']) > 30
+                        ):
+                            # Set elbow_bottom_curved = True
+                            for detection in detection_result:
+                                if (detection['type'] == 'arrow' and
+                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                                  detection['elbow_bottom_curved'] = True
+
+                        if (
+                            (arrow['x2'] >= arrowhead['x2'] >= arrow['x1']
+                            and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
+                            and arrow['width'] >= arrowhead['width']*2) or (arrow['width'] >= arrow['height'])
+                        ):
+                            # Set elbow_bottom_left = True
+                            for detection in detection_result:
+                                if (detection['type'] == 'arrow' and
+                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                                  detection['elbow_bottom_left'] = True
+
+
+                        elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
+                                          arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
+                                          not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
+                                                  for d in detection_result)):
+                            # Set elbow_top_left = True
+                            for detection in detection_result:
+                                if (detection['type'] == 'arrow' and
+                                  detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+                                  detection['elbow_top_left'] = True
+
+        return detection_result
+
+def arrange_symbol_order(self, filtered_results):
+    for i in range(len(filtered_results) - 1):
+
+        if i < len(filtered_results) - 1:
+
+            if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
+                        filtered_results[i + 1]['type'] != 'arrowhead':
+                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
+
+            if filtered_results[i]['elbow_bottom_curved'] == True and filtered_results[i - 1]['type'] == 'arrow':
+                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
+
+            #DO-WHILE Implementation
+            if i > 0 and i + 1 < len(filtered_results) and \
+                          filtered_results[i]['type'] == 'arrowhead' and \
+                          filtered_results[i + 1]['type'] == 'process' and \
+                          filtered_results[i - 1]['type'] == 'arrowhead':
+
+                    removed_arrowhead = filtered_results.pop(i)
+
+                    j = i + 1
+                    while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
+                        j += 1
+
+                    new_index = j + 2
+                    if new_index < len(filtered_results):
+                        filtered_results.insert(new_index, removed_arrowhead)
+
+
+            #FOR and WHILE LOOP Implementation
+            if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
+                        (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
+
+                # Find the next arrow element
+                j = i + 1
+                n = len(filtered_results)
+                while j < n and filtered_results[j]['elbow_top_left'] != True and filtered_results[j]['elbow_bottom_curved'] != True:
+                    j += 1
+
+                # Remove the second arrowhead
+                removed_arrowhead = filtered_results.pop(i + 1)
+                new_index = j
+
+                if new_index < len(filtered_results):
+                    filtered_results.insert(new_index, removed_arrowhead)
+
+    return filtered_results        
+
 
 def detect_diagram(thresh_image):
 # Load image
@@ -275,33 +378,16 @@ def detect_diagram(thresh_image):
 
 def sort_results(detection_result, boxes, confidences, arrow_data):
     # Check for arrowhead-overlapping arrows
-    for arrow in arrow_data:
-        if arrow['type'] == 'arrow':
-            for arrowhead in arrow_data:
-                if arrowhead['type'] == 'arrowhead':
-                    if (
-                        arrow['x2'] >= arrowhead['x1'] >= arrow['x1']
-                        and arrow['y2'] >= arrowhead['y1'] >= arrow['center_y']
-                        and abs(arrow['width'] - arrowhead['width']) > 30
-                    ):
-                        # Set elbow_bottom_curved = True
-                        for detection in detection_result:
-                            if (detection['type'] == 'arrow' and
-                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                              detection['elbow_bottom_curved'] = True
+    total_x = sum(sym['coordinates'][0] for sym in detection_result)
+    avg_center_x = total_x / len(detection_result)
+    term_y2 = 0
+    for detection in detection_result:
+        # Check if the detection is a terminator and has the command 'start'
+        if detection['type'] == 'terminator' and detection['command'] == 'start':
+            # Get the y2 value
+            term_y2 = detection['coordinates'][1] + detection['height'] // 2
 
-
-                    # Check if arrowhead overlaps with the arrow and is in the top half
-                    elif (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and
-                                      arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and
-                                      not any(d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])
-                                              for d in detection_result)):
-                        # Set elbow_top_left = True
-                        for detection in detection_result:
-                            if (detection['type'] == 'arrow' and
-                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-                              detection['elbow_top_left'] = True
-
+    detection_result = check_arrows(detection_result, term_y2, arrow_data)
     
     
     # Apply NMS
@@ -320,63 +406,19 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
     has_elbow_top_right = any(symbol.get('elbow_top_right', False) for symbol in filtered_results)  # Use .get() to handle missing keys
     
     if has_elbow_top_right:
-            total_x = sum(sym['coordinates'][0] for sym in filtered_results)
-            avg_center_x = total_x / len(filtered_results)
-    
-            # Step 3: Divide symbols into list1 (left side) and list2 (right side) based on their x-coordinate
+
+            # Divide symbols into list1 (left side) and list2 (right side) 
             list1 = [sym for sym in filtered_results if sym['coordinates'][0] <= avg_center_x]
             list2 = [sym for sym in filtered_results if sym['coordinates'][0] > avg_center_x]
     
-            # Step 4: Combine list1 and list2 to create the final reading order
+            # Combine list1 and list2 to create the final sorted list order
             filtered_results = list1 + list2
     
-    
-    
-    for i in range(len(filtered_results) - 1):
-    
-        if i < len(filtered_results) - 1:
-    
-            if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
-                        filtered_results[i + 1]['type'] != 'arrowhead':
-                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-    
-            if filtered_results[i]['elbow_bottom_curved'] == True and filtered_results[i - 1]['type'] == 'arrow':
-                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-            #DO-WHILE Implementation
-            if i > 0 and i + 1 < len(filtered_results) and \
-                          filtered_results[i]['type'] == 'arrowhead' and \
-                          filtered_results[i + 1]['type'] == 'process' and \
-                          filtered_results[i - 1]['type'] == 'arrowhead':
-    
-                    removed_arrowhead = filtered_results.pop(i)
-    
-                    j = i + 1
-                    while j < len(filtered_results) and filtered_results[j]['type'] != 'decision':
-                        j += 1
-    
-                    new_index = j + 2
-                    if new_index < len(filtered_results):
-                        filtered_results.insert(new_index, removed_arrowhead)
-    
-    
-              #FOR and WHILE LOOP Implementation
-            if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-                        (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
-                  #find the next arrow element with width > 100
-                j = i + 1
-                n = len(filtered_results)
-                while j < n and filtered_results[j]['elbow_top_left'] != True and filtered_results[j]['elbow_bottom_curved'] != True:
-                    j += 1
-    
-                # Remove the second arrowhead
-                removed_arrowhead = filtered_results.pop(i + 1)
-                new_index = j
-    
-                if new_index < len(filtered_results):
-                    filtered_results.insert(new_index, removed_arrowhead)
+    filtered_results = arrange_symbol_order(filtered_results)
     
     for idx, detection in enumerate(filtered_results):
-        # Assign ID
+        
+        # Also add the order ID of symbols just in case needed
         detection["order"] = idx + 1
     
     return filtered_results
@@ -460,9 +502,11 @@ import time
 def convert_to_pseudocode(detections):
     start_time = time.time()
     max_time = 3
+    
     # Initialize variables
     pseudocode = []
     i = 0
+    j=0
     n = len(detections)
     end_detected = False  # check if END is detected
 
@@ -476,7 +520,19 @@ def convert_to_pseudocode(detections):
         "for i in range (7)": "I IN RANGE 1 TO 7",
         "for i in range (8)": "I IN RANGE 1 TO 8",
         "for i in range (9)": "I IN RANGE 1 TO 9",
-        "while obstacle not detected": "OBSTACLE NOT DETECTED"
+        "for i in range (10)": "I IN RANGE 1 TO 10",
+        "for i in range (11)": "I IN RANGE 1 TO 11",
+        "for i in range (12)": "I IN RANGE 1 TO 12",
+        "for i in range (13)": "I IN RANGE 1 TO 13",
+        "for i in range (14)": "I IN RANGE 1 TO 14",
+        "for i in range (15)": "I IN RANGE 1 TO 15",
+        "for i in range (16)": "I IN RANGE 1 TO 16",
+        "for i in range (17)": "I IN RANGE 1 TO 17",
+        "for i in range (18)": "I IN RANGE 1 TO 18",
+        "for i in range (19)": "I IN RANGE 1 TO 19",
+        "for i in range (20)": "I IN RANGE 1 TO 20",
+        "while obstacle not detected": "OBSTACLE NOT DETECTED",
+        "if obstacle ahead": "OBSTACLE AHEAD"
     }
 
     def capitalize_words(text):
@@ -545,7 +601,8 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    WHILE {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
-                while j < n and detections[j]['elbow_top_left'] != True:
+                while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
+
                     if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
                     elif j < n and detections[j]['type'] in ['process', 'data']:
@@ -554,12 +611,74 @@ def convert_to_pseudocode(detections):
                             pseudocode.append(f"        {command}")
                         j += 1
 
-                j += 2
-                command = capitalize_words(detections[j]['command'])
-                if command != "invalid text":
-                    pseudocode.append(f"        {command}")
+                if detections[j]['elbow_top_left'] == True:
+
+                    j += 2
+
+                    while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+
+                    if j < len(detections):
+                        command = capitalize_words(detections[j]['command'])
+                        pseudocode.append(f"        {command}")
+                        pseudocode.append("    END WHILE")
+
+                    else:
+                        pseudocode.append("    END WHILE")
+
+                    i = j  # Skip to after the decision block
+
+                elif detections[j]['elbow_bottom_curved'] == True:
+
+                    j -= 1
+
+                    while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+
+                    if j < len(detections):
+                        pseudocode.append("    END WHILE")
+
+                    else:
+                        pseudocode.append("    END WHILE")
+
+                    i = j  # Skip to after the decision block
+
+                else:
                     pseudocode.append("    END WHILE")
 
+                    i = j  # Skip to after the decision block
+
+            #IF STATEMENT
+            elif j < n and detections[j]['type'] == 'decision' and \
+            detections[j]['command'].startswith("if"):
+                if command != "invalid text":
+                    pseudocode.append(f"    {command}")
+
+                decision_command = decision_mapping.get(detections[j]['command'], "Unknown Condition")
+                if decision_command != "invalid text":
+                    pseudocode.append(f"    IF {decision_command}")
+                j += 2
+
+
+                # Find the next non-arrow element while finding arrow of > 100 width
+                while j < n and detections[j]['elbow_bottom_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
+                    if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+                    elif j < n and detections[j]['type'] in ['process', 'data']:
+                        command = capitalize_words(detections[j]['command'])
+                        if command != "invalid text":
+                            pseudocode.append(f"        {command}")
+                        j += 1
+
+                pseudocode.append("    END IF")
+
+                while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+
+                if j < n and detections[j]['type'] in ['process', 'data']:
+                    command = capitalize_words(detections[j]['command'])
+                    if command != "invalid text":
+                        pseudocode.append(f"    {command}")
                 i = j  # Skip to after the decision block
 
             # If the next symbol is a decision with an arrow connected - FOR LOOP
@@ -685,30 +804,90 @@ def convert_to_pseudocode(detections):
 
         elif element['type'] == 'decision' and \
         element['command'] in ["while obstacle not detected"]:
-        # WHILE LOOP
+        # FOR LOOP
             j = i + 1
             decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
             if decision_command != "invalid text":
                 pseudocode.append(f"    WHILE {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and detections[j]['elbow_top_left'] != True:
+            while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
+
                 if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
                     command = capitalize_words(detections[j]['command'])
-                    if decision_command != "invalid text":
+                    if command != "invalid text":
                         pseudocode.append(f"        {command}")
                     j += 1
 
-            j += 2
+            if detections[j]['elbow_top_left'] == True:
 
-            command = capitalize_words(detections[j]['command'])
-            if decision_command != "invalid text":
-                pseudocode.append(f"        {command}")
+                j += 2
+
+                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+
+                if j < len(detections):
+                    command = capitalize_words(detections[j]['command'])
+
+                    pseudocode.append(f"        {command}")
+                    pseudocode.append("    END WHILE")
+                else:
+                    pseudocode.append("    END WHILE")
+
+                i = j  # Skip to after the decision block
+
+            elif detections[j]['elbow_bottom_curved'] == True:
+                j -= 1
+
+                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+
+                if j < len(detections):
+                    pseudocode.append("    END WHILE")
+
+                else:
+                    pseudocode.append("    END WHILE")
+
+                i = j  # Skip to after the decision block
+
+            else:
+
                 pseudocode.append("    END WHILE")
 
+                i = j  # Skip to after the decision block
+
+        elif element['type'] == 'decision' and \
+        element['command'] in ["if obstacle ahead"]:
+
+            decision_command = decision_mapping.get(element['command'], "Unknown Condition")
+            if decision_command != "invalid text":
+                pseudocode.append(f"    IF {decision_command}")
+            j = i + 2
+
+            # Find the next non-arrow element while finding arrow of > 100 width
+            while j < n and detections[j]['elbow_bottom_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
+                if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    j += 1
+                elif j < n and detections[j]['type'] in ['process', 'data']:
+                    command = capitalize_words(detections[j]['command'])
+                    if command != "invalid text":
+                        pseudocode.append(f"        {command}")
+                    j += 1
+
+            pseudocode.append("    END IF")
+            while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                j += 1
+
+            if j < n and detections[j]['type'] in ['process', 'data']:
+                command = capitalize_words(detections[j]['command'])
+                if command != "invalid text":
+                    pseudocode.append(f"    {command}")
+
+
             i = j  # Skip to after the decision block
+
 
         i += 1
 
@@ -717,19 +896,61 @@ def convert_to_pseudocode(detections):
         pseudocode.append("END")
 
     return "\n".join(pseudocode)
-
+    
 def translate_pseudocode(pseudocode):
     command_mapping = {
-
+        "Move Forward Five Times": "F,5",
         "Move Forward": "F",
-
+        "Move Forward Two Times": "F,2",
+        "Move Forward Three Times": "F,3",
+        "Move Forward Four Times": "F,4",
+        "Move Forward Six Times": "F,6",
+        "Move Forward Seven Times": "F,7",
+        "Move Forward Eight Times": "F,8",
+        "Move Forward Nine Times": "F,9",
+        "Move Forward Ten Times": "F,10",
+        "Move Backward Five Times": "B,5",
         "Move Backward": "B",
-
+        "Move Backward Two Times": "B,2",
+        "Move Backward Three Times": "B,3",
+        "Move Backward Four Times": "B,4",
+        "Move Backward Six Times": "B,6",
+        "Move Backward Seven Times": "B,7",
+        "Move Backward Eight Times": "B,8",
+        "Move Backward Nine Times": "B,9",
+        "Move Backward Ten Times": "B,10",
         "Turn Left": "L",
-
-        "Turn Right": "R"
-
-
+        "Turn Left Two Times": "L,2",
+        "Turn Left Three Times": "L,3",
+        "Turn Left Four Times": "L,4",
+        "Turn Left Five Times": "L,5",
+        "Turn Left Six Times": "L,6",
+        "Turn Left Seven Times": "L,7",
+        "Turn Left Eight Times": "L,8",
+        "Turn Left Nine Times": "L,9",
+        "Turn Left Ten Times": "L,10",
+        "Turn Right": "R",
+        "Turn Right Two Times": "R,2",
+        "Turn Right Three Times": "R,3",
+        "Turn Right Four Times": "R,4",
+        "Turn Right Five Times": "R,5",
+        "Turn Right Six Times": "R,6",
+        "Turn Right Seven Times": "R,7",
+        "Turn Right Eight Times": "R,8",
+        "Turn Right Nine Times": "R,9",
+        "Turn Right Ten Times": "R,10",
+        "Turn 180": "T,180",
+        "Turn 360": "T,360",
+        "Delay One Second": "D,1",
+        "Delay Two Seconds": "D,2",
+        "Delay Three Seconds": "D,3",
+        "Delay Four Seconds": "D,4",
+        "Delay Five Seconds": "D,5",
+        "Delay Six Seconds": "D,6",
+        "Delay Seven Seconds": "D,7",
+        "Delay Eight Seconds": "D,8",
+        "Delay Nine Seconds": "D,9",
+        "Delay Ten Seconds": "D,10",
     }
 
     commands = []
@@ -737,45 +958,59 @@ def translate_pseudocode(pseudocode):
 
     def parse_command(line):
         line = line.strip()
-        # Check for exact matches
-        return f"<{command_mapping.get(line, line)}>" if line in command_mapping else ""
+        # Perform case-insensitive lookup:
+        for key, value in command_mapping.items():
+            if key.lower() == line.lower():
+                return f"<{value}>"  # Use original value from command_mapping
+        return None
 
     def format_condition(condition):
-        # Use the command_mapping to get the formatted condition
-        formatted_condition = command_mapping.get(condition.strip(), condition.strip())
-        return formatted_condition.lower().replace(" ", "_")
+        condition = condition.strip()
+        # Perform case-insensitive lookup:
+        for key, value in command_mapping.items():
+            if key.lower() == condition.lower():
+                return value.lower().replace(" ", "_") # Use original value, lowercase, and replace spaces
+        return condition.lower().replace(" ", "_")
 
     for line in pseudocode.split('\n'):
         line = line.strip()
 
-        if line.startswith("BEGIN") or line == "":
+        if line.lower().startswith("begin") or line == "":
             continue  # Skip BEGIN and empty lines
 
-        elif line.startswith("FOR"):
+        elif line.lower().startswith("for"):
             loop_stack.append(line)
             _, condition = line.split(' ', 1)
-            if "TO" in condition:
-                _, to_part = condition.split("TO")
+            if "to" in condition.lower():
+                _, to_part = condition.lower().split("to")
                 loop_count = to_part.strip()
                 commands.append(f"<fr,{loop_count}>")
             else:
                 commands.append("<fr>")
 
-        elif line.startswith("WHILE"):
+        elif line.lower().startswith("while obstacle"):
             loop_stack.append(line)
-            _, condition = line.split(' ', 1)
-            formatted_condition = format_condition(condition)
             commands.append(f"<w,obs>")
 
-        elif line.startswith("END FOR"):
+
+        elif line.lower().startswith("if obstacle"):
+            loop_stack.append(line)
+            commands.append(f"<if,obs>")
+
+        elif line.lower().startswith("end for"):
             if loop_stack:
                 loop_stack.pop()
                 commands.append("<endfr>")
 
-        elif line.startswith("END WHILE"):
+        elif line.lower().startswith("end while"):
             if loop_stack:
                 loop_stack.pop()
                 commands.append("<endw>")
+
+        elif line.lower().startswith("end if"):
+            if loop_stack:
+                loop_stack.pop()
+                commands.append("<endif>")
 
         else:
             command = parse_command(line)
@@ -785,13 +1020,35 @@ def translate_pseudocode(pseudocode):
     return ''.join(commands)
 
 
-
-
 def is_valid_flowchart(sorted_result):
-    if (len(sorted_result) < 7 
-        or sorted_result[0]['type'] != 'terminator' 
-        or sorted_result[-1]['type'] != 'terminator' 
-        or any(detection.get('command') == 'invalid text' for detection in sorted_result)):
+    
+    num_terminators = 0
+    num_arrows = 0
+    num_arrowheads = 0
+    num_process_data = 0
+
+
+    for detection in sorted_result:
+        label = detection['type']
+        
+        if label in ['process', 'data']:
+            num_process_data += 1
+            
+        elif label == 'terminator':
+            num_terminators += 1
+        elif label == 'arrow':
+            num_arrows += 1
+        elif label == 'arrowhead':
+            num_arrowheads += 1
+
+
+    # Check the conditions
+    if (
+        len(detection_result) <= 5 or 
+        num_terminators <= 1 or 
+        num_arrows <= num_arrowheads*0.25 or
+        num_process_data == 0
+    ):
         return False  # Invalid flowchart
 
     return True  # Valid flowchart
