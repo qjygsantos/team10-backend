@@ -1027,6 +1027,7 @@ def is_valid_flowchart(sorted_result):
     num_arrowheads = 0
     num_process_data = 0
     num_symbols = 0
+    num_decision = 0
     command_none_count = 0
 
 
