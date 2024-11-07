@@ -1032,6 +1032,7 @@ def is_valid_flowchart(sorted_result):
 
     for detection in sorted_result:
         label = detection['type']
+        command = detection['command']
         
         if label not in ['arrow', 'arrowhead']:
             num_symbols += 1
