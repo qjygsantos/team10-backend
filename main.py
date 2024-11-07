@@ -367,6 +367,8 @@ def detect_diagram(thresh_image):
             'pos': pos,
             'elbow_top_left': False,  # Default to False
             'elbow_bottom_curved': False,
+            'elbow_top_right': False,
+            'elbow_bottom_left' : False,
             'orig_text': text,
             'conf': confidence
 
