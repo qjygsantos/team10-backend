@@ -379,6 +379,8 @@ def detect_diagram(thresh_image):
 
 
 def sort_results(detection_result, boxes, confidences, arrow_data):
+    if not detection_result:
+        return [] 
     # Check for arrowhead-overlapping arrows
     total_x = sum(sym['coordinates'][0] for sym in detection_result)
     avg_center_x = total_x / len(detection_result)
