@@ -1077,7 +1077,7 @@ def is_valid_flowchart(sorted_result):
 
 def resize_image(image_path, base_width):
     img = Image.open(image_path)
-
+    img = ImageOps.exif_transpose(img)
     wpercent = (base_width / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
     resized_img = img.resize((base_width, hsize), PIL.Image.Resampling.LANCZOS)
