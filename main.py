@@ -536,7 +536,10 @@ def convert_to_pseudocode(detections):
         "for i in range (19)": "I IN RANGE 1 TO 19",
         "for i in range (20)": "I IN RANGE 1 TO 20",
         "while obstacle not detected": "OBSTACLE NOT DETECTED",
-        "if obstacle ahead": "OBSTACLE AHEAD"
+        "if obstacle ahead": "OBSTACLE AHEAD",
+        "set speed to slow": "SET Speed to Slow",
+        "set speed to normal": "SET Speed to Normal",
+        "set speed to fast": "SET Speed to Fast"
     }
 
     def capitalize_words(text):
@@ -554,7 +557,7 @@ def convert_to_pseudocode(detections):
                     end_detected = True  # Mark END
 
         # Process symbols
-        elif element['type'] == 'process':
+        elif element['type'] in ["process", "data"]:
             command = capitalize_words(element['command'])
 
             # Find the next non-arrow element
@@ -955,6 +958,9 @@ def translate_pseudocode(pseudocode):
         "Delay Eight Seconds": "D,8",
         "Delay Nine Seconds": "D,9",
         "Delay Ten Seconds": "D,10",
+        "SET Speed to Slow": "S",
+        "SET Speed to Normal": "N",
+        "SET Speed to Fast": "H"
     }
 
     commands = []
