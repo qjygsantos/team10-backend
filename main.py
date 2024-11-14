@@ -225,7 +225,7 @@ def arrange_symbol_order(filtered_results):
             #DO-WHILE Implementation
             if i > 0 and i + 1 < len(filtered_results) and \
                           filtered_results[i]['type'] == 'arrowhead' and \
-                          filtered_results[i + 1]['type'] == 'process' and \
+                          filtered_results[i + 1]['type'] in ['process', 'data'] and \
                           filtered_results[i - 1]['type'] == 'arrowhead':
 
                     removed_arrowhead = filtered_results.pop(i)
@@ -538,7 +538,7 @@ def convert_to_pseudocode(detections):
         "while obstacle not detected": "OBSTACLE NOT DETECTED",
         "if obstacle ahead": "OBSTACLE AHEAD",
         "set speed to slow": "SET Speed to Slow",
-        "set speed to normal": "SET Speed to Normal",
+        "set speed to medium": "SET Speed to Medium",
         "set speed to fast": "SET Speed to Fast"
     }
 
@@ -959,7 +959,7 @@ def translate_pseudocode(pseudocode):
         "Delay Nine Seconds": "D,9",
         "Delay Ten Seconds": "D,10",
         "SET Speed to Slow": "S",
-        "SET Speed to Normal": "N",
+        "SET Speed to Medium": "M",
         "SET Speed to Fast": "H"
     }
 
