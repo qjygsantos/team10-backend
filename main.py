@@ -537,9 +537,7 @@ def convert_to_pseudocode(detections):
         "for i in range (20)": "I IN RANGE 1 TO 20",
         "while obstacle not detected": "OBSTACLE NOT DETECTED",
         "if obstacle ahead": "OBSTACLE AHEAD",
-        "set speed to slow": "SET Speed to Slow",
-        "set speed to medium": "SET Speed to Medium",
-        "set speed to fast": "SET Speed to Fast"
+
     }
 
     def capitalize_words(text):
@@ -958,9 +956,9 @@ def translate_pseudocode(pseudocode):
         "Delay Eight Seconds": "D,8",
         "Delay Nine Seconds": "D,9",
         "Delay Ten Seconds": "D,10",
-        "SET Speed to Slow": "S",
-        "SET Speed to Medium": "M",
-        "SET Speed to Fast": "H"
+        "Set Speed To Slow": "S",
+        "Set Speed To Medium": "M",
+        "Set Speed To Fast": "H"
     }
 
     commands = []
