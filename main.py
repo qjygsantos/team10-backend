@@ -459,7 +459,7 @@ def print_result(detection_result, image_path):
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
             label = f"{detection['order']}. {detection['type']}"
             if detection['command']:
@@ -472,15 +472,15 @@ def print_result(detection_result, image_path):
 
             # Draw text on the image
             if detection['type'] == "arrowhead":
-                cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
+                cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
             elif detection['type'] == "terminator" and detection['command'] == "end":
-                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
+                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
             elif detection['type'] == "arrow":
-                cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
+                cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
             elif detection['type'] == "decision":
-                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
+                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
             else:
-                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
+                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
 
         cv2.imwrite(image_path, image)
         return image_path
