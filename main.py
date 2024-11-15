@@ -159,7 +159,7 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 50 else "unrecognized text"
+    return best_match if highest_ratio >= 37 else "unrecognized text"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
@@ -1075,8 +1075,8 @@ def is_valid_flowchart(sorted_result):
         len(sorted_result) <= 5 or 
         num_arrows <= 1 or
         num_arrowheads <= 1 or
-        num_arrowheads <= num_arrows * 0.5 or
-        num_arrows <= num_arrowheads * 0.5 or
+        num_arrowheads <= num_arrows * 0.33 or
+        num_arrows <= num_arrowheads * 0.33 or
         num_process_data == 0 or
         (num_symbols > 0 and command_none_count >= num_symbols / 2)
     ):
