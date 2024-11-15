@@ -159,7 +159,7 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 30 else "unrecognized text"
+    return best_match if highest_ratio >= 50 else "unrecognized text"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
