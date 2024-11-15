@@ -1028,7 +1028,6 @@ def translate_pseudocode(pseudocode):
 
 
 def is_valid_flowchart(sorted_result):
-    
     num_terminators = 0
     num_arrows = 0
     num_arrowheads = 0
@@ -1036,7 +1035,7 @@ def is_valid_flowchart(sorted_result):
     num_symbols = 0
     num_decision = 0
     command_none_count = 0
-
+    terminator_commands = []  # Store commands of terminator symbols
 
     for detection in sorted_result:
         label = detection['type']
@@ -1059,27 +1058,32 @@ def is_valid_flowchart(sorted_result):
                 num_terminators += 1
                 if command is None or command == "unrecognized text":
                     command_none_count += 1
+                else:
+                    terminator_commands.append(command.strip().lower())
                         
         elif label == 'arrow':
             num_arrows += 1
         elif label == 'arrowhead':
             num_arrowheads += 1
 
+    # Check the conditions for terminators
+    if num_terminators != 2 or "start" not in terminator_commands or "end" not in terminator_commands:
+        return False  # Invalid flowchart due to terminator condition
 
-    # Check the conditions
+    # Check the other conditions
     if (
         len(sorted_result) <= 5 or 
-        num_terminators <= 1 or 
         num_arrows <= 1 or
         num_arrowheads <= 1 or
-        num_arrowheads <= num_arrows*0.25 or
-        num_arrows <= num_arrowheads*0.25 or
+        num_arrowheads <= num_arrows * 0.25 or
+        num_arrows <= num_arrowheads * 0.25 or
         num_process_data == 0 or
         (num_symbols > 0 and command_none_count >= num_symbols / 2)
     ):
         return False  # Invalid flowchart
 
     return True  # Valid flowchart
+
 
 def resize_image(image_path, base_width):
     img = Image.open(image_path)
