@@ -73,7 +73,7 @@ predefined_commands = [
 
 start_end = ["start", "end"]
 
-input_output = ["check obstacle", "set speed to slow", "set speed to medium", "set speed to fast"]
+input_output = ["check obstacle", "set speed to slow", "set speed to medium", "set speed to high"]
 
 predefined_conditions = [
     "for i in range (2)", "for i in range (3)",
@@ -149,7 +149,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "data":
         predefined_list = input_output
     else:
-        return "unrecognized text (verify manually)"  # Return invalid if symbol_type is unrecognized
+        return "unrecognized text"  # Return invalid if symbol_type is unrecognized
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
@@ -159,7 +159,7 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 20 else "unrecognized text (verify manually)"
+    return best_match if highest_ratio >= 30 else "unrecognized text"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
@@ -341,19 +341,19 @@ def detect_diagram(thresh_image):
         confidences.append(confidence)
 
         if class_name.lower().replace("rotation", "") == 'decision':
-            pos = y1 + 11
+            pos = y1 + 11 #add allowance just in case
 
         elif class_name == 'arrow':
-            pos = y2 - 15
+            pos = y2 - 15 #add allowance just in case
 
         elif class_name == 'arrowhead':
-            pos = y2 - 3
+            pos = y2 - 3 #add allowance just in case
             
         elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'start':
-            pos = y1 - 10
+            pos = y1 - 10 #add allowance just in case
 
         elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
-            pos = y2 + 10
+            pos = y2 + 10 #add allowance just in case
 
         else:
             pos = y2
@@ -482,9 +482,8 @@ def print_result(detection_result, image_path):
             else:
                 cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 2)
 
-        output_image_path = os.path.join('static/detected_images', os.path.basename(image_path))
-        cv2.imwrite(output_image_path, image)
-        return output_image_path
+        cv2.imwrite(image_path, image)
+        return image_path
 
 def print_result_with_ocr(result, image_path):
             detections = sv.Detections.from_ultralytics(result)
@@ -958,7 +957,7 @@ def translate_pseudocode(pseudocode):
         "Delay Ten Seconds": "D,10",
         "Set Speed To Slow": "S",
         "Set Speed To Medium": "M",
-        "Set Speed To Fast": "H"
+        "Set Speed To High": "H"
     }
 
     commands = []
@@ -1048,17 +1047,17 @@ def is_valid_flowchart(sorted_result):
 
             if label in ['process', 'data']:
                 num_process_data += 1
-                if command is None:
+                if command is None or command == "unrecognized text":
                     command_none_count += 1
                     
             elif label == 'decision':
                 num_decision += 1
-                if command is None:
+                if command is None or command == "unrecognized text":
                     command_none_count += 1
                     
             elif label == 'terminator':
                 num_terminators += 1
-                if command is None:
+                if command is None or command == "unrecognized text":
                     command_none_count += 1
                         
         elif label == 'arrow':
@@ -1071,7 +1070,10 @@ def is_valid_flowchart(sorted_result):
     if (
         len(sorted_result) <= 5 or 
         num_terminators <= 1 or 
+        num_arrows <= 1 or
+        num_arroheads <= 1 or
         num_arrowheads <= num_arrows*0.25 or
+        num_arrows <= num_arrowheads*0.25 or
         num_process_data == 0 or
         (num_symbols > 0 and command_none_count >= num_symbols / 2)
     ):
@@ -1129,7 +1131,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = ""
 
         # Save the image with detections
-        resized_image_path = print_result_with_ocr(result, resized_image_path)
+        resized_image_path = print_result(sorted_result, resized_image_path)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -1165,7 +1167,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = translate_pseudocode(pseudocode_result)
     
         # Save the image with detections
-        resized_image_path = print_result_with_ocr(result, resized_image_path)
+        resized_image_path = print_result(sorted_result, resized_image_path)
         
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
