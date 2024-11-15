@@ -1071,7 +1071,7 @@ def is_valid_flowchart(sorted_result):
         len(sorted_result) <= 5 or 
         num_terminators <= 1 or 
         num_arrows <= 1 or
-        num_arroheads <= 1 or
+        num_arrowheads <= 1 or
         num_arrowheads <= num_arrows*0.25 or
         num_arrows <= num_arrowheads*0.25 or
         num_process_data == 0 or
