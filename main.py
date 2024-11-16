@@ -149,7 +149,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "data":
         predefined_list = input_output
     else:
-        return "unrecognized text"  # Return invalid if symbol_type is unrecognized
+        return f"invalid text ({text})"  # Return invalid if symbol_type is unrecognized
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
@@ -159,7 +159,7 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 37 else "unrecognized text"
+    return best_match if highest_ratio >= 45 else f"invalid text ({text})"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
@@ -567,28 +567,23 @@ def convert_to_pseudocode(detections):
             detections[j]['command'].startswith("while") and \
             detections[j + 1]['elbow_top_left'] == True:
                 decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
-                if command != "invalid text":
-                    pseudocode.append(f"    {command}")
+                pseudocode.append(f"    {command}")
 
                 k = j - 1
-                if decision_command != "invalid text":
-                    pseudocode.append(f"    WHILE {decision_command}")
+                pseudocode.append(f"    WHILE {decision_command}")
 
                 while k < n and \
                 detections[k]['coordinates'][1] - detections[k]['height'] // 2 >= \
                 detections[j + 1]['coordinates'][1] - detections[j + 1]['height'] // 2:
 
                     k -= 1
-                if detections[k]['command'] != "invalid text":
-                    pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
+                pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
 
                 while k < n and detections[k]['type'] != 'decision':
                     k += 1
                     if detections[k]['type'] == 'process' or detections[k]['type'] == 'data':
-                        if detections[k]['command'] != "invalid text":
-                            pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
-                if command != "invalid text":
-                    pseudocode.append("    END WHILE")
+                        pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
+                pseudocode.append("    END WHILE")
                 i = j  # Skip ahead to after the decision block
 
 
@@ -596,13 +591,11 @@ def convert_to_pseudocode(detections):
             elif j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("while") and \
             detections[j + 1]['elbow_top_left'] == False:
-                if command != "invalid text":
-                    pseudocode.append(f"    {command}")
+                pseudocode.append(f"    {command}")
 
                 j += 1
                 decision_command = decision_mapping.get(detections[j-1]['command'], "Unknown Condition")
-                if decision_command != "invalid text":
-                    pseudocode.append(f"    WHILE {decision_command}")
+                pseudocode.append(f"    WHILE {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
                 while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
@@ -611,8 +604,7 @@ def convert_to_pseudocode(detections):
                         j += 1
                     elif j < n and detections[j]['type'] in ['process', 'data']:
                         command = capitalize_words(detections[j]['command'])
-                        if command != "invalid text":
-                            pseudocode.append(f"        {command}")
+                        pseudocode.append(f"        {command}")
                         j += 1
 
                 if detections[j]['elbow_top_left'] == True:
@@ -655,12 +647,10 @@ def convert_to_pseudocode(detections):
             #IF STATEMENT
             elif j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("if"):
-                if command != "invalid text":
-                    pseudocode.append(f"    {command}")
+                pseudocode.append(f"    {command}")
 
                 decision_command = decision_mapping.get(detections[j]['command'], "Unknown Condition")
-                if decision_command != "invalid text":
-                    pseudocode.append(f"    IF {decision_command}")
+                pseudocode.append(f"    IF {decision_command}")
                 j += 2
 
 
@@ -670,8 +660,7 @@ def convert_to_pseudocode(detections):
                         j += 1
                     elif j < n and detections[j]['type'] in ['process', 'data']:
                         command = capitalize_words(detections[j]['command'])
-                        if command != "invalid text":
-                            pseudocode.append(f"        {command}")
+                        pseudocode.append(f"        {command}")
                         j += 1
 
                 pseudocode.append("    END IF")
@@ -681,21 +670,18 @@ def convert_to_pseudocode(detections):
 
                 if j < n and detections[j]['type'] in ['process', 'data']:
                     command = capitalize_words(detections[j]['command'])
-                    if command != "invalid text":
-                        pseudocode.append(f"    {command}")
+                    pseudocode.append(f"    {command}")
                 i = j  # Skip to after the decision block
 
             # If the next symbol is a decision with an arrow connected - FOR LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("for") and \
             detections[j + 1]['elbow_top_left'] == False:
-                if command != "invalid text":
-                    pseudocode.append(f"    {command}")
+                pseudocode.append(f"    {command}")
 
                 j += 1
                 decision_command = decision_mapping.get(detections[j-1]['command'], "Unknown Condition")
-                if decision_command != "invalid text":
-                    pseudocode.append(f"    FOR {decision_command}")
+                pseudocode.append(f"    FOR {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
                 while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
@@ -704,8 +690,7 @@ def convert_to_pseudocode(detections):
                         j += 1
                     elif j < n and detections[j]['type'] in ['process', 'data']:
                         command = capitalize_words(detections[j]['command'])
-                        if command != "invalid text":
-                            pseudocode.append(f"        {command}")
+                        pseudocode.append(f"        {command}")
                         j += 1
 
                 if detections[j]['elbow_top_left'] == True:
@@ -745,8 +730,7 @@ def convert_to_pseudocode(detections):
 
                     i = j  # Skip to after the decision block
             else:
-                if command != "invalid text":
-                    pseudocode.append(f"    {command}")
+                pseudocode.append(f"    {command}")
 
 
         # Decision symbols (nested decision not yet implemented)
@@ -755,8 +739,7 @@ def convert_to_pseudocode(detections):
         # FOR LOOP
             j = i + 1
             decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
-            if decision_command != "invalid text":
-                pseudocode.append(f"    FOR {decision_command}")
+            pseudocode.append(f"    FOR {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
             while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
@@ -765,8 +748,7 @@ def convert_to_pseudocode(detections):
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
                     command = capitalize_words(detections[j]['command'])
-                    if command != "invalid text":
-                        pseudocode.append(f"        {command}")
+                    pseudocode.append(f"        {command}")
                     j += 1
 
             if detections[j]['elbow_top_left'] == True:
@@ -811,8 +793,7 @@ def convert_to_pseudocode(detections):
         # FOR LOOP
             j = i + 1
             decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
-            if decision_command != "invalid text":
-                pseudocode.append(f"    WHILE {decision_command}")
+            pseudocode.append(f"    WHILE {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
             while j < n and detections[j]['elbow_top_left'] != True and detections[j]['elbow_bottom_curved'] != True and (time.time() - start_time) < max_time:
@@ -821,8 +802,7 @@ def convert_to_pseudocode(detections):
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
                     command = capitalize_words(detections[j]['command'])
-                    if command != "invalid text":
-                        pseudocode.append(f"        {command}")
+                    pseudocode.append(f"        {command}")
                     j += 1
 
             if detections[j]['elbow_top_left'] == True:
@@ -866,8 +846,7 @@ def convert_to_pseudocode(detections):
         element['command'] in ["if obstacle ahead"]:
 
             decision_command = decision_mapping.get(element['command'], "Unknown Condition")
-            if decision_command != "invalid text":
-                pseudocode.append(f"    IF {decision_command}")
+            pseudocode.append(f"    IF {decision_command}")
             j = i + 2
 
             # Find the next non-arrow element while finding arrow of > 100 width
@@ -876,8 +855,7 @@ def convert_to_pseudocode(detections):
                     j += 1
                 elif j < n and detections[j]['type'] in ['process', 'data']:
                     command = capitalize_words(detections[j]['command'])
-                    if command != "invalid text":
-                        pseudocode.append(f"        {command}")
+                    pseudocode.append(f"        {command}")
                     j += 1
 
             pseudocode.append("    END IF")
@@ -886,8 +864,7 @@ def convert_to_pseudocode(detections):
 
             if j < n and detections[j]['type'] in ['process', 'data']:
                 command = capitalize_words(detections[j]['command'])
-                if command != "invalid text":
-                    pseudocode.append(f"    {command}")
+                pseudocode.append(f"    {command}")
 
 
             i = j  # Skip to after the decision block
