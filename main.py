@@ -149,7 +149,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "data":
         predefined_list = input_output
     else:
-        return f"invalid text ({text})"  # Return invalid if symbol_type is unrecognized
+        return f"INVALID TEXT ({text})"  # Return invalid if symbol_type is unrecognized
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
@@ -159,7 +159,7 @@ def text_matching(text, symbol_type=None):
             best_match = predefined
 
     # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 45 else f"invalid text ({text})"
+    return best_match if highest_ratio >= 45 else f"INVALID ({text})"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
@@ -1023,17 +1023,17 @@ def is_valid_flowchart(sorted_result):
 
             if label in ['process', 'data']:
                 num_process_data += 1
-                if command is None or command == "unrecognized text":
+                if command is None or command.startswith("INVALID TEXT"):
                     command_none_count += 1
                     
             elif label == 'decision':
                 num_decision += 1
-                if command is None or command == "unrecognized text":
+                if command is None or command.startswith("INVALID TEXT"):
                     command_none_count += 1
                     
             elif label == 'terminator':
                 num_terminators += 1
-                if command is None or command == "unrecognized text":
+                if command is None or command.startswith("INVALID TEXT"):
                     command_none_count += 1
                 else:
                     terminator_commands.append(command.strip().lower())
@@ -1052,10 +1052,10 @@ def is_valid_flowchart(sorted_result):
         len(sorted_result) <= 5 or 
         num_arrows <= 1 or
         num_arrowheads <= 1 or
-        num_arrowheads <= num_arrows * 0.33 or
-        num_arrows <= num_arrowheads * 0.33 or
+        num_arrowheads <= num_arrows * 0.75 or
+        num_arrows <= num_arrowheads * 0.75 or
         num_process_data == 0 or
-        (num_symbols > 0 and command_none_count >= num_symbols / 2)
+        command_none_count >= 2
     ):
         return False  # Invalid flowchart
 
