@@ -1112,8 +1112,7 @@ async def upload_image(file: UploadFile = File(...)):
         arduino_commands = ""
 
         # Save the image with detections
-        resized_image_path = print_result_with_ocr(result, resized_image_path)
-
+        print_result(detection_result, resized_image_path)
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
