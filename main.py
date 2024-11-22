@@ -85,10 +85,7 @@ predefined_conditions = [
     "for i in range (14)", "for i in range (15)",
     "for i in range (16)", "for i in range (17)",
     "for i in range (18)", "for i in range (19)",
-    "for i in range (20)", "while obstacle not detected"
-]
-
-predefined_if = [    
+    "for i in range (20)", "while obstacle not detected",   
     "if obstacle = 10cm", "if obstacle = 20cm",
     "if obstacle = 30cm", "if obstacle = 40cm",
     "if obstacle = 50cm", "if obstacle = 60cm",
@@ -156,8 +153,6 @@ def text_matching(text, symbol_type=None):
         predefined_list = predefined_commands
     elif symbol_type == "terminator":
         predefined_list = start_end
-    elif symbol_type == "decision" and normalized_text.startswith("if"):
-        predefined_list = predefined_if
     elif symbol_type == "decision":
         predefined_list = predefined_conditions
     elif symbol_type == "data":
