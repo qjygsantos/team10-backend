@@ -85,8 +85,20 @@ predefined_conditions = [
     "for i in range (14)", "for i in range (15)",
     "for i in range (16)", "for i in range (17)",
     "for i in range (18)", "for i in range (19)",
-    "for i in range (20)",
-    "while obstacle not detected", "if obstacle ahead"
+    "for i in range (20)", "while obstacle not detected"
+]
+
+predefined_if = [    
+    "if obstacle = 10cm", "if obstacle = 20cm",
+    "if obstacle = 30cm", "if obstacle = 40cm",
+    "if obstacle = 50cm", "if obstacle = 60cm",
+    "if obstacle = 70cm", "if obstacle = 80cm",
+    "if obstacle = 90cm", "if obstacle = 100cm",
+    "if obstacle = 110cm", "if obstacle = 120cm",
+    "if obstacle = 130cm", "if obstacle = 140cm",
+    "if obstacle = 150cm", "if obstacle = 160cm",
+    "if obstacle = 170cm", "if obstacle = 180cm",
+    "if obstacle = 190cm", "if obstacle = 200cm"
 ]
 
 
@@ -144,6 +156,8 @@ def text_matching(text, symbol_type=None):
         predefined_list = predefined_commands
     elif symbol_type == "terminator":
         predefined_list = start_end
+    elif symbol_type == "decision" and normalized_text.startswith("if"):
+        predefined_list = predefined_if
     elif symbol_type == "decision":
         predefined_list = predefined_conditions
     elif symbol_type == "data":
@@ -535,8 +549,26 @@ def convert_to_pseudocode(detections):
         "for i in range (19)": "I IN RANGE 1 TO 19",
         "for i in range (20)": "I IN RANGE 1 TO 20",
         "while obstacle not detected": "OBSTACLE NOT DETECTED",
-        "if obstacle ahead": "OBSTACLE AHEAD",
-
+        "if obstacle = 10cm": "OBSTACLE 10CM AHEAD",
+        "if obstacle = 20cm": "OBSTACLE 20CM AHEAD",
+        "if obstacle = 30cm": "OBSTACLE 30CM AHEAD",
+        "if obstacle = 40cm": "OBSTACLE 40CM AHEAD",
+        "if obstacle = 50cm": "OBSTACLE 50CM AHEAD",
+        "if obstacle = 60cm": "OBSTACLE 60CM AHEAD",
+        "if obstacle = 70cm": "OBSTACLE 70CM AHEAD",
+        "if obstacle = 80cm": "OBSTACLE 80CM AHEAD",
+        "if obstacle = 90cm": "OBSTACLE 90CM AHEAD",
+        "if obstacle = 100cm": "OBSTACLE 100CM AHEAD",
+        "if obstacle = 110cm": "OBSTACLE 110CM AHEAD",
+        "if obstacle = 120cm": "OBSTACLE 120CM AHEAD",
+        "if obstacle = 130cm": "OBSTACLE 130CM AHEAD",
+        "if obstacle = 140cm": "OBSTACLE 140CM AHEAD",
+        "if obstacle = 150cm": "OBSTACLE 150CM AHEAD",
+        "if obstacle = 160cm": "OBSTACLE 160CM AHEAD",
+        "if obstacle = 170cm": "OBSTACLE 170CM AHEAD",
+        "if obstacle = 180cm": "OBSTACLE 180CM AHEAD",
+        "if obstacle = 190cm": "OBSTACLE 190CM AHEAD",
+        "if obstacle = 200cm": "OBSTACLE 200CM AHEAD",
     }
 
     def capitalize_words(text):
@@ -880,63 +912,37 @@ def convert_to_pseudocode(detections):
     
 def translate_pseudocode(pseudocode):
     command_mapping = {
-        "Move Forward Five Times": "F,5",
         "Move Forward": "F",
-        "Move Forward Two Times": "F,2",
-        "Move Forward Three Times": "F,3",
-        "Move Forward Four Times": "F,4",
-        "Move Forward Six Times": "F,6",
-        "Move Forward Seven Times": "F,7",
-        "Move Forward Eight Times": "F,8",
-        "Move Forward Nine Times": "F,9",
-        "Move Forward Ten Times": "F,10",
-        "Move Backward Five Times": "B,5",
         "Move Backward": "B",
-        "Move Backward Two Times": "B,2",
-        "Move Backward Three Times": "B,3",
-        "Move Backward Four Times": "B,4",
-        "Move Backward Six Times": "B,6",
-        "Move Backward Seven Times": "B,7",
-        "Move Backward Eight Times": "B,8",
-        "Move Backward Nine Times": "B,9",
-        "Move Backward Ten Times": "B,10",
         "Turn Left": "L",
-        "Turn Left Two Times": "L,2",
-        "Turn Left Three Times": "L,3",
-        "Turn Left Four Times": "L,4",
-        "Turn Left Five Times": "L,5",
-        "Turn Left Six Times": "L,6",
-        "Turn Left Seven Times": "L,7",
-        "Turn Left Eight Times": "L,8",
-        "Turn Left Nine Times": "L,9",
-        "Turn Left Ten Times": "L,10",
         "Turn Right": "R",
-        "Turn Right Two Times": "R,2",
-        "Turn Right Three Times": "R,3",
-        "Turn Right Four Times": "R,4",
-        "Turn Right Five Times": "R,5",
-        "Turn Right Six Times": "R,6",
-        "Turn Right Seven Times": "R,7",
-        "Turn Right Eight Times": "R,8",
-        "Turn Right Nine Times": "R,9",
-        "Turn Right Ten Times": "R,10",
-        "Turn 180": "T,180",
-        "Turn 360": "T,360",
-        "Delay One Second": "D,1",
-        "Delay Two Seconds": "D,2",
-        "Delay Three Seconds": "D,3",
-        "Delay Four Seconds": "D,4",
-        "Delay Five Seconds": "D,5",
-        "Delay Six Seconds": "D,6",
-        "Delay Seven Seconds": "D,7",
-        "Delay Eight Seconds": "D,8",
-        "Delay Nine Seconds": "D,9",
-        "Delay Ten Seconds": "D,10",
         "Set Speed To Slow": "S",
         "Set Speed To Medium": "M",
         "Set Speed To High": "H"
     }
 
+    decision_mappping = {
+        "IF OBSTACLE 10CM AHEAD": "if,10",
+        "IF OBSTACLE 20CM AHEAD": "if,20", 
+        "IF OBSTACLE 30CM AHEAD": "if,30", 
+        "IF OBSTACLE 40CM AHEAD": "if,40", 
+        "IF OBSTACLE 50CM AHEAD": "if,50", 
+        "IF OBSTACLE 60CM AHEAD": "if,60", 
+        "IF OBSTACLE 70CM AHEAD": "if,70", 
+        "IF OBSTACLE 80CM AHEAD": "if,80", 
+        "IF OBSTACLE 90CM AHEAD": "if,90", 
+        "IF OBSTACLE 100CM AHEAD": "if,100", 
+        "IF OBSTACLE 110CM AHEAD": "if,110", 
+        "IF OBSTACLE 120CM AHEAD": "if,120", 
+        "IF OBSTACLE 130CM AHEAD": "if,130", 
+        "IF OBSTACLE 140CM AHEAD": "if,140", 
+        "IF OBSTACLE 150CM AHEAD": "if,150", 
+        "IF OBSTACLE 160CM AHEAD": "if,160", 
+        "IF OBSTACLE 170CM AHEAD": "if,170", 
+        "IF OBSTACLE 180CM AHEAD": "if,180", 
+        "IF OBSTACLE 190CM AHEAD": "if,190", 
+        "IF OBSTACLE 200CM AHEAD": "if,200" 
+    }
     commands = []
     loop_stack = []
 
@@ -947,6 +953,14 @@ def translate_pseudocode(pseudocode):
             if key.lower() == line.lower():
                 return f"<{value}>"  # Use original value from command_mapping
         return None
+        
+    def parse_if(line):
+        line = line.strip()
+        # Perform case-insensitive lookup:
+        for key, value in decision_mapping.items():
+            if key.lower() == line.lower():
+                return f"<{value}>"  # Use original value from command_mapping
+        return None    
 
     def format_condition(condition):
         condition = condition.strip()
@@ -975,11 +989,12 @@ def translate_pseudocode(pseudocode):
         elif line.lower().startswith("while obstacle"):
             loop_stack.append(line)
             commands.append(f"<w,obs>")
-
-
+            
         elif line.lower().startswith("if obstacle"):
             loop_stack.append(line)
-            commands.append(f"<if,obs>")
+            command = parse_if(line)
+            if command:
+                commands.append(command)
 
         elif line.lower().startswith("end for"):
             if loop_stack:
