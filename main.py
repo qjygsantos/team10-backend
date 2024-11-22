@@ -916,7 +916,7 @@ def translate_pseudocode(pseudocode):
         "Set Speed To High": "H"
     }
 
-    decision_mappping = {
+    decision_mapping = {
         "IF OBSTACLE 10CM AHEAD": "if,10",
         "IF OBSTACLE 20CM AHEAD": "if,20", 
         "IF OBSTACLE 30CM AHEAD": "if,30", 
