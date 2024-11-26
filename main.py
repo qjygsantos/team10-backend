@@ -30,6 +30,8 @@ from firebase_admin import credentials, firestore, storage
 from IPython.display import Image as IPyImage
 from ultralytics import YOLO
 from fuzzywuzzy import fuzz
+import re
+
 
 # Ensure the necessary directories exist
 for directory in ['static/objects', 'static/detected_images']:
@@ -64,18 +66,19 @@ firebase_admin.initialize_app(cred, {'storageBucket': 'psykitz-891d8.appspot.com
 
 db = firestore.client()
 bucket = storage.bucket()
+
 predefined_commands = [
     "move forward",
     "move backward",
     "turn left",
-    "turn right"
+    "turn right",
 ]
 
 start_end = ["start", "end"]
 
-input_output = ["check obstacle", "set speed to slow", "set speed to medium", "set speed to high"]
-
+'''
 predefined_conditions = [
+
     "for i in range (2)", "for i in range (3)",
     "for i in range (4)", "for i in range (5)",
     "for i in range (6)", "for i in range (7)",
@@ -85,19 +88,14 @@ predefined_conditions = [
     "for i in range (14)", "for i in range (15)",
     "for i in range (16)", "for i in range (17)",
     "for i in range (18)", "for i in range (19)",
-    "for i in range (20)", "while obstacle not detected",   
-    "if obstacle = 10cm", "if obstacle = 20cm",
-    "if obstacle = 30cm", "if obstacle = 40cm",
-    "if obstacle = 50cm", "if obstacle = 60cm",
-    "if obstacle = 70cm", "if obstacle = 80cm",
-    "if obstacle = 90cm", "if obstacle = 100cm",
-    "if obstacle = 110cm", "if obstacle = 120cm",
-    "if obstacle = 130cm", "if obstacle = 140cm",
-    "if obstacle = 150cm", "if obstacle = 160cm",
-    "if obstacle = 170cm", "if obstacle = 180cm",
-    "if obstacle = 190cm", "if obstacle = 200cm"
+    "for i in range (20)",
+    "while obstacle not detected", "if obstacle ahead"
 ]
+'''
 
+predefined_conditions = ["for i in range", "while obstacle not detected", "if obstacle cm ahead"]
+
+input_output = ["read distance", "check obstacle", "set speed to slow", "set speed to normal", "set speed to high"]
 
 model = YOLO('models/yolov5m-98mAP.pt')
 
@@ -138,7 +136,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
     return ' '.join(texts_inside_box) if texts_inside_box else "no text detected"
 
     
-def text_matching(text, symbol_type=None):
+def match_text_with_commands(text, symbol_type=None):
     normalized_text = text.strip().lower()
 
     if normalized_text == "no text detected":
@@ -158,7 +156,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "data":
         predefined_list = input_output
     else:
-        return f"INVALID TEXT ({text})"  # Return invalid if symbol_type is unrecognized
+        return "unrecognized text"  # Return invalid if symbol_type is unrecognized
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
@@ -167,8 +165,21 @@ def text_matching(text, symbol_type=None):
             highest_ratio = ratio
             best_match = predefined
 
-    # Return the best match if the ratio is above a certain threshold, else invalid
-    return best_match if highest_ratio >= 45 else f"INVALID ({text})"
+    if best_match == "for i in range" and highest_ratio >= 50:
+        temp = re.findall(r'\d+', normalized_text)
+        num = ''.join(temp)
+        return f"i in range 1 to {num}" if len(num) < 3 else f"unknown condition ({text})"
+
+    elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
+        temp = re.findall(r'\d+', normalized_text)
+        num = ''.join(temp)
+        return f"obstacle {num}cm ahead" if len(num) < 3 else f"unknown condition ({text})"
+
+    elif best_match == "while obstacle not detected":
+        return best_match if highest_ratio >= 65 else f"unknown condition ({text})"
+
+    else:
+        return best_match if highest_ratio >= 35 else f"unknown command ({text})"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
@@ -250,7 +261,7 @@ def arrange_symbol_order(filtered_results):
 
             #FOR and WHILE LOOP Implementation
             if filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and \
-                        (filtered_results[i]['command'].startswith("for") or filtered_results[i]['command'].startswith("while")):
+                        (filtered_results[i]['command'].startswith("i in range") or filtered_results[i]['command'].startswith("while")):
 
                 # Find the next arrow element
                 j = i + 1
@@ -272,7 +283,7 @@ def detect_diagram(thresh_image):
 # Load image
 
     thresh_img_3channel = cv2.cvtColor(thresh_image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(thresh_img_3channel, conf=0.39, iou=0.78)[0]
+    result = model.predict(thresh_img_3channel, conf=0.32, iou=0.55)[0]
 
 
     result_ocr = perform_OCR(thresh_image)
@@ -372,7 +383,7 @@ def detect_diagram(thresh_image):
             'coordinates': (x, y),
             'height': height,
             'width': width,
-            'command': matched_command if text != "no text detected" else "",
+            'command': matched_command if text != "no text detected" else text,
             'pos': pos,
             'elbow_top_left': False,  # Default to False
             'elbow_bottom_curved': False,
@@ -404,7 +415,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
     
     
     # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.39, nms_threshold=0.78)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.33, nms_threshold=0.55)
     
     # Make sure indices are crrect
     if len(indices) > 0:
@@ -509,12 +520,9 @@ def print_result_with_ocr(result, image_path):
             return image_path
 
 
-import time
-
 def convert_to_pseudocode(detections):
     start_time = time.time()
     max_time = 3
-    
     # Initialize variables
     pseudocode = []
     i = 0
@@ -524,46 +532,7 @@ def convert_to_pseudocode(detections):
 
     # decision commands
     decision_mapping = {
-        "for i in range (2)": "I IN RANGE 1 TO 2",
-        "for i in range (3)": "I IN RANGE 1 TO 3",
-        "for i in range (4)": "I IN RANGE 1 TO 4",
-        "for i in range (5)": "I IN RANGE 1 TO 5",
-        "for i in range (6)": "I IN RANGE 1 TO 6",
-        "for i in range (7)": "I IN RANGE 1 TO 7",
-        "for i in range (8)": "I IN RANGE 1 TO 8",
-        "for i in range (9)": "I IN RANGE 1 TO 9",
-        "for i in range (10)": "I IN RANGE 1 TO 10",
-        "for i in range (11)": "I IN RANGE 1 TO 11",
-        "for i in range (12)": "I IN RANGE 1 TO 12",
-        "for i in range (13)": "I IN RANGE 1 TO 13",
-        "for i in range (14)": "I IN RANGE 1 TO 14",
-        "for i in range (15)": "I IN RANGE 1 TO 15",
-        "for i in range (16)": "I IN RANGE 1 TO 16",
-        "for i in range (17)": "I IN RANGE 1 TO 17",
-        "for i in range (18)": "I IN RANGE 1 TO 18",
-        "for i in range (19)": "I IN RANGE 1 TO 19",
-        "for i in range (20)": "I IN RANGE 1 TO 20",
         "while obstacle not detected": "OBSTACLE NOT DETECTED",
-        "if obstacle = 10cm": "OBSTACLE 10CM AHEAD",
-        "if obstacle = 20cm": "OBSTACLE 20CM AHEAD",
-        "if obstacle = 30cm": "OBSTACLE 30CM AHEAD",
-        "if obstacle = 40cm": "OBSTACLE 40CM AHEAD",
-        "if obstacle = 50cm": "OBSTACLE 50CM AHEAD",
-        "if obstacle = 60cm": "OBSTACLE 60CM AHEAD",
-        "if obstacle = 70cm": "OBSTACLE 70CM AHEAD",
-        "if obstacle = 80cm": "OBSTACLE 80CM AHEAD",
-        "if obstacle = 90cm": "OBSTACLE 90CM AHEAD",
-        "if obstacle = 100cm": "OBSTACLE 100CM AHEAD",
-        "if obstacle = 110cm": "OBSTACLE 110CM AHEAD",
-        "if obstacle = 120cm": "OBSTACLE 120CM AHEAD",
-        "if obstacle = 130cm": "OBSTACLE 130CM AHEAD",
-        "if obstacle = 140cm": "OBSTACLE 140CM AHEAD",
-        "if obstacle = 150cm": "OBSTACLE 150CM AHEAD",
-        "if obstacle = 160cm": "OBSTACLE 160CM AHEAD",
-        "if obstacle = 170cm": "OBSTACLE 170CM AHEAD",
-        "if obstacle = 180cm": "OBSTACLE 180CM AHEAD",
-        "if obstacle = 190cm": "OBSTACLE 190CM AHEAD",
-        "if obstacle = 200cm": "OBSTACLE 200CM AHEAD",
     }
 
     def capitalize_words(text):
@@ -581,7 +550,7 @@ def convert_to_pseudocode(detections):
                     end_detected = True  # Mark END
 
         # Process symbols
-        elif element['type'] in ["process", "data"]:
+        elif element['type'] == 'process':
             command = capitalize_words(element['command'])
 
             # Find the next non-arrow element
@@ -593,10 +562,14 @@ def convert_to_pseudocode(detections):
             if j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("while") and \
             detections[j + 1]['elbow_top_left'] == True:
-                decision_command = decision_mapping.get(detections[j]['command'].lower(), "Unknown Condition")
+
+                decision_command = decision_mapping.get(detections[j]['command'].lower())
+
+
                 pseudocode.append(f"    {command}")
 
                 k = j - 1
+
                 pseudocode.append(f"    WHILE {decision_command}")
 
                 while k < n and \
@@ -610,7 +583,9 @@ def convert_to_pseudocode(detections):
                     k += 1
                     if detections[k]['type'] == 'process' or detections[k]['type'] == 'data':
                         pseudocode.append(f"        {capitalize_words(detections[k]['command'])}")
+
                 pseudocode.append("    END WHILE")
+
                 i = j  # Skip ahead to after the decision block
 
 
@@ -621,7 +596,7 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"    {command}")
 
                 j += 1
-                decision_command = decision_mapping.get(detections[j-1]['command'], "Unknown Condition")
+                decision_command = decision_mapping.get(detections[j-1]['command'].lower())
                 pseudocode.append(f"    WHILE {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
@@ -673,10 +648,10 @@ def convert_to_pseudocode(detections):
 
             #IF STATEMENT
             elif j < n and detections[j]['type'] == 'decision' and \
-            detections[j]['command'].startswith("if"):
+            detections[j]['command'].startswith("obstacle"):
                 pseudocode.append(f"    {command}")
 
-                decision_command = decision_mapping.get(detections[j]['command'], "Unknown Condition")
+                decision_command = detections[j]['command'].upper()
                 pseudocode.append(f"    IF {decision_command}")
                 j += 2
 
@@ -700,14 +675,16 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    {command}")
                 i = j  # Skip to after the decision block
 
+
+
             # If the next symbol is a decision with an arrow connected - FOR LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
-            detections[j]['command'].startswith("for") and \
+            detections[j]['command'].startswith("i in range") and \
             detections[j + 1]['elbow_top_left'] == False:
                 pseudocode.append(f"    {command}")
 
                 j += 1
-                decision_command = decision_mapping.get(detections[j-1]['command'], "Unknown Condition")
+                decision_command =detections[j-1]['command'].upper()
                 pseudocode.append(f"    FOR {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
@@ -762,10 +739,10 @@ def convert_to_pseudocode(detections):
 
         # Decision symbols (nested decision not yet implemented)
         elif element['type'] == 'decision' and \
-        element['command'].startswith("for i in range"):
+        element['command'].startswith("i in range"):
         # FOR LOOP
             j = i + 1
-            decision_command = decision_mapping.get(element['command'].lower(), "Unknown Condition")
+            decision_command = element['command'].upper()
             pseudocode.append(f"    FOR {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
@@ -870,9 +847,9 @@ def convert_to_pseudocode(detections):
                 i = j  # Skip to after the decision block
 
         elif element['type'] == 'decision' and \
-        element['command'] in ["if obstacle ahead"]:
+        element['command'].startswith("obstacle"):
 
-            decision_command = decision_mapping.get(element['command'], "Unknown Condition")
+            decision_command = element['command'].upper()
             pseudocode.append(f"    IF {decision_command}")
             j = i + 2
 
@@ -896,8 +873,14 @@ def convert_to_pseudocode(detections):
 
             i = j  # Skip to after the decision block
 
+        elif element['type'] == 'decision' and \
+        element['command'].startswith("unknown"):
+            decision_command = element['command']
+            pseudocode.append(f"    {decision_command}")
 
         i += 1
+
+
 
     # END will be added if not detected
     if not end_detected:
