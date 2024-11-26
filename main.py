@@ -95,7 +95,7 @@ predefined_conditions = [
 
 predefined_conditions = ["for i in range", "while obstacle not detected", "if obstacle cm ahead"]
 
-input_output = ["read distance", "check obstacle", "set speed to slow", "set speed to normal", "set speed to high"]
+input_output = ["read distance", "check obstacle", "set speed to slow", "set speed to medium", "set speed to high"]
 
 model = YOLO('models/yolov5m-98mAP.pt')
 
@@ -520,6 +520,8 @@ def print_result_with_ocr(result, image_path):
             return image_path
 
 
+import time
+
 def convert_to_pseudocode(detections):
     start_time = time.time()
     max_time = 3
@@ -550,7 +552,7 @@ def convert_to_pseudocode(detections):
                     end_detected = True  # Mark END
 
         # Process symbols
-        elif element['type'] == 'process':
+        elif element['type'] in ["process", "data"]:
             command = capitalize_words(element['command'])
 
             # Find the next non-arrow element
@@ -558,7 +560,7 @@ def convert_to_pseudocode(detections):
             while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
                 j += 1
 
-            # If the next symbol is a decision with an arrow connected and height >= 300 - DO WHILE LOOP
+            # DO WHILE LOOP
             if j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("while") and \
             detections[j + 1]['elbow_top_left'] == True:
@@ -589,7 +591,7 @@ def convert_to_pseudocode(detections):
                 i = j  # Skip ahead to after the decision block
 
 
-            # If the next symbol is a decision with an arrow connected and height < 300 - WHILE LOOP
+            # WHILE LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("while") and \
             detections[j + 1]['elbow_top_left'] == False:
@@ -677,7 +679,7 @@ def convert_to_pseudocode(detections):
 
 
 
-            # If the next symbol is a decision with an arrow connected - FOR LOOP
+            # FOR LOOP
             elif j < n and detections[j]['type'] == 'decision' and \
             detections[j]['command'].startswith("i in range") and \
             detections[j + 1]['elbow_top_left'] == False:
@@ -733,6 +735,11 @@ def convert_to_pseudocode(detections):
                     pseudocode.append("    END FOR")
 
                     i = j  # Skip to after the decision block
+            elif j < n and detections[j]['type'] == 'decision' and \
+            (detections[j]['command'].startswith("unknown") or detections[j]['command'].startswith("no text")):
+                decision_command = capitalize_words(detections[j]['command'])
+                pseudocode.append(f"    {decision_command}")
+
             else:
                 pseudocode.append(f"    {command}")
 
@@ -874,12 +881,11 @@ def convert_to_pseudocode(detections):
             i = j  # Skip to after the decision block
 
         elif element['type'] == 'decision' and \
-        element['command'].startswith("unknown"):
-            decision_command = element['command']
+        (element['command'].startswith("unknown") or element['command'].startswith("no text")):
+            decision_command = capitalize_words(element['command'])
             pseudocode.append(f"    {decision_command}")
 
         i += 1
-
 
 
     # END will be added if not detected
@@ -899,28 +905,6 @@ def translate_pseudocode(pseudocode):
         "Set Speed To High": "H"
     }
 
-    decision_mapping = {
-        "IF OBSTACLE 10CM AHEAD": "if,10",
-        "IF OBSTACLE 20CM AHEAD": "if,20", 
-        "IF OBSTACLE 30CM AHEAD": "if,30", 
-        "IF OBSTACLE 40CM AHEAD": "if,40", 
-        "IF OBSTACLE 50CM AHEAD": "if,50", 
-        "IF OBSTACLE 60CM AHEAD": "if,60", 
-        "IF OBSTACLE 70CM AHEAD": "if,70", 
-        "IF OBSTACLE 80CM AHEAD": "if,80", 
-        "IF OBSTACLE 90CM AHEAD": "if,90", 
-        "IF OBSTACLE 100CM AHEAD": "if,100", 
-        "IF OBSTACLE 110CM AHEAD": "if,110", 
-        "IF OBSTACLE 120CM AHEAD": "if,120", 
-        "IF OBSTACLE 130CM AHEAD": "if,130", 
-        "IF OBSTACLE 140CM AHEAD": "if,140", 
-        "IF OBSTACLE 150CM AHEAD": "if,150", 
-        "IF OBSTACLE 160CM AHEAD": "if,160", 
-        "IF OBSTACLE 170CM AHEAD": "if,170", 
-        "IF OBSTACLE 180CM AHEAD": "if,180", 
-        "IF OBSTACLE 190CM AHEAD": "if,190", 
-        "IF OBSTACLE 200CM AHEAD": "if,200" 
-    }
     commands = []
     loop_stack = []
 
@@ -934,11 +918,11 @@ def translate_pseudocode(pseudocode):
         
     def parse_if(line):
         line = line.strip()
-        # Perform case-insensitive lookup:
-        for key, value in decision_mapping.items():
-            if key.lower() == line.lower():
-                return f"<{value}>"  # Use original value from command_mapping
-        return None    
+        match = re.search(r"IF OBSTACLE (\d+)CM AHEAD", line, re.IGNORECASE) 
+        if match:
+            number = match.group(1)  # Extract the number
+            return f"<if,{number}>" 
+        return None   
 
     def format_condition(condition):
         condition = condition.strip()
