@@ -168,12 +168,12 @@ def text_matching(text, symbol_type=None):
     if best_match == "for i in range" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
-        return f"i in range 1 to {num}" if len(num) < 3 else f"unknown condition ({text})"
+        return f"i in range 1 to {num}" if 0 < len(num) < 3 else f"unknown condition ({text})"
 
     elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
-        return f"obstacle {num}cm ahead" if len(num) < 3 else f"unknown condition ({text})"
+        return f"obstacle {num}cm ahead" if 0 < len(num) < 3 else f"unknown condition ({text})"
 
     elif best_match == "while obstacle not detected":
         return best_match if highest_ratio >= 50 else f"unknown condition ({text})"
