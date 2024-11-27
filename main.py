@@ -1038,7 +1038,140 @@ def is_valid_flowchart(sorted_result):
 
     return True  # Valid flowchart
 
+def validate_pseudocode(pseudocode: str):
+    # Valid commands
+    valid_commands = {
+        "set speed to slow",
+        "set speed to medium",
+        "set speed to high",
+        "while obstacle not detected",
+        "if obstacle (n)cm ahead",
+        "move forward",
+        "move backward",
+        "turn left",
+        "turn right",
+        "start",
+        "end",
+        "end for",
+        "end if",
+        "end while",
+    }
 
+    pseudocode_lines = pseudocode.strip().split("\n")
+    for_stack = []
+    while_stack = []
+    conditional_stack = []
+    has_commands = False
+
+    # Error message format
+    def generate_error(line_no, line_text, description):
+        return {
+            "status": "fail",
+            "error_message": f"""
+line {line_no}
+    {line_text}
+        ^
+SyntaxError: {description}"""
+        }
+
+    # Check nested loop
+    def check_nested(line_no, current_structure):
+        if for_stack or while_stack or conditional_stack:
+            return generate_error(
+                line_no,
+                pseudocode_lines[line_no - 1],
+                f"nested '{current_structure}' is not allowed"
+            )
+        return None
+
+    # Command checker
+    def check_line(line, line_no):
+        nonlocal has_commands
+        line = line.strip().lower()  # Case-insensitive
+
+        if line in {"begin", "end"}:
+            return None  # BEGIN and END are checked later
+
+        if line.startswith("for i in range 1 to "):
+            try:
+                n = int(line.split("to ")[1])
+                if not (1 <= n <= 99):
+                    raise ValueError("'n' is out of range (1-99)")
+                error = check_nested(line_no, "for")
+                if error:
+                    return error
+                for_stack.append(line_no)
+            except ValueError:
+                return generate_error(line_no, line, "malformed 'for i in range 1 to n' or 'n' is out of range (1-99)")
+            has_commands = True
+
+        elif line.startswith("if obstacle ") and line.endswith("cm ahead"):
+            try:
+                n = int(line.split("obstacle ")[1].split("cm ahead")[0])
+                if n > 250:
+                    raise ValueError("'n' exceeds 250")
+                error = check_nested(line_no, "if")
+                if error:
+                    return error
+                conditional_stack.append(line_no)
+            except ValueError:
+                return generate_error(line_no, line, "malformed 'if obstacle (n)cm ahead' or 'n' exceeds 250")
+            has_commands = True
+
+        elif line == "end for":
+            if not for_stack:
+                return generate_error(line_no, line, "'end for' without matching 'for i in range 1 to n'")
+            for_stack.pop()
+
+        elif line == "end if":
+            if not conditional_stack:
+                return generate_error(line_no, line, "'end if' without matching 'if obstacle (n)cm ahead'")
+            conditional_stack.pop()
+
+        elif line == "while obstacle not detected":
+            error = check_nested(line_no, "while")
+            if error:
+                return error
+            while_stack.append(line_no)
+            has_commands = True
+
+        elif line == "end while":
+            if not while_stack:
+                return generate_error(line_no, line, "'end while' without matching 'while obstacle not detected'")
+            while_stack.pop()
+
+        elif line in valid_commands:
+            has_commands = True
+
+        else:
+            return generate_error(line_no, line, "unrecognized command")
+        return None
+
+    # First and last lines must be BEGIN and END
+    if pseudocode_lines[0].strip().lower() != "begin":
+        return generate_error(1, pseudocode_lines[0], "first line must be 'begin'")
+    if pseudocode_lines[-1].strip().lower() != "end":
+        return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'end'")
+
+    # Check lines one by one
+    for line_no, line in enumerate(pseudocode_lines, start=1):
+        error = check_line(line, line_no)
+        if error:
+            return error
+
+    # Additional checking
+    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "begin" and pseudocode_lines[1].strip().lower() == "end":
+        return generate_error(1, pseudocode_lines[0], "'begin' and 'end' only, no commands between")
+    if for_stack:
+        return generate_error(for_stack[-1], pseudocode_lines[for_stack[-1] - 1], "'for i in range 1 to n' without matching 'end for'")
+    if conditional_stack:
+        return generate_error(conditional_stack[-1], pseudocode_lines[conditional_stack[-1] - 1], "'if obstacle (n)cm ahead' without matching 'end if'")
+    if while_stack:
+        return generate_error(while_stack[-1], pseudocode_lines[while_stack[-1] - 1], "'while obstacle not detected' without matching 'end while'")
+
+    # If no errors
+    return {"status": "success", "error_message": "Pseudocode is valid"}
+    
 def resize_image(image_path, base_width):
     img = Image.open(image_path)
     img = ImageOps.exif_transpose(img)
@@ -1153,6 +1286,10 @@ async def upload_image(file: UploadFile = File(...)):
             "arduino_commands": arduino_commands
         })
         
+from fastapi import FastAPI, UploadFile, HTTPException
+
+app = FastAPI()
+
 @app.post("/translate_pseudocode_from_file")
 async def translate_pseudocode_from_file(file: UploadFile):
     if not file.filename.endswith('.txt'):
@@ -1162,16 +1299,28 @@ async def translate_pseudocode_from_file(file: UploadFile):
     contents = await file.read()
     pseudocode = contents.decode('utf-8')  # Ensure it is decoded to a string
 
+    # Validate pseudocode
+    validation_result = validate_pseudocode(pseudocode)
+    if validation_result["status"] == "fail":
+        return {
+            "status": "Fail",
+            "message": "Uh oh, there's an error in your pseudocode, tap the error symbol on the top-right corner to check which caused it."
+            "error_message": validation_result["error_message"],
+            "arduino_commands": ""  # Return an empty string if validation fails
+        }
+
     try:
-        # Call the function with the file content
+        # Translate the pseudocode only if validation is successful
         arduino_commands = translate_pseudocode(pseudocode)
-        
         return {
             "status": "Success",
+            "message": "Success! You may proceed in executing the commands on your robot!"
+            "error_message": validation_result["error_message"],
             "arduino_commands": arduino_commands
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
