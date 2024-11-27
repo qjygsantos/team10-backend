@@ -283,7 +283,7 @@ def detect_diagram(thresh_image):
 # Load image
 
     thresh_img_3channel = cv2.cvtColor(thresh_image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(thresh_img_3channel, conf=0.32, iou=0.55)[0]
+    result = model.predict(thresh_img_3channel, conf=0.3, iou=0.7)[0]
 
 
     result_ocr = perform_OCR(thresh_image)
@@ -415,7 +415,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
     
     
     # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.33, nms_threshold=0.55)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.7)
     
     # Make sure indices are crrect
     if len(indices) > 0:
