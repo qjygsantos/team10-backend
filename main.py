@@ -160,7 +160,7 @@ def text_matching(text, symbol_type=None):
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
-        ratio = fuzz.WRatio(predefined, normalized_text)
+        ratio = fuzz.ratio(predefined, normalized_text)
         if ratio > highest_ratio:
             highest_ratio = ratio
             best_match = predefined
@@ -173,7 +173,14 @@ def text_matching(text, symbol_type=None):
     elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
-        return f"obstacle {num}cm ahead" if 0 < len(num) < 3 else f"unknown condition ({text})"
+        try:
+            num_int = int(num)
+            if num_int < 250:
+                return f"obstacle {num}cm ahead"
+            else:
+                return f"unknown condition (distance value too high)"
+        except ValueError:
+            return f"obstacle 100cm ahead"
 
     elif best_match == "while obstacle not detected":
         return best_match if highest_ratio >= 50 else f"unknown condition ({text})"
