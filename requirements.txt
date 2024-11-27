@@ -12,6 +12,7 @@ firebase-admin
 torch
 uvicorn
 python-multipart
+python-Levenshtein
 ultralytics
 supervision
 fuzzywuzzy
