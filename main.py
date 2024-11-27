@@ -1287,9 +1287,6 @@ async def upload_image(file: UploadFile = File(...)):
             "arduino_commands": arduino_commands
         })
         
-from fastapi import FastAPI, UploadFile, HTTPException
-
-app = FastAPI()
 
 @app.post("/translate_pseudocode_from_file")
 async def translate_pseudocode_from_file(file: UploadFile):
