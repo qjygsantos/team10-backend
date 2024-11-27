@@ -1304,7 +1304,7 @@ async def translate_pseudocode_from_file(file: UploadFile):
     if validation_result["status"] == "fail":
         return {
             "status": "Fail",
-            "message": "Uh oh, there's an error in your pseudocode, tap the error symbol on the top-right corner to check which caused it."
+            "message": "Uh oh, there's an error in your pseudocode, tap the error symbol on the top-right corner to check which caused it.",
             "error_message": validation_result["error_message"],
             "arduino_commands": ""  # Return an empty string if validation fails
         }
@@ -1314,7 +1314,7 @@ async def translate_pseudocode_from_file(file: UploadFile):
         arduino_commands = translate_pseudocode(pseudocode)
         return {
             "status": "Success",
-            "message": "Success! You may proceed in executing the commands on your robot!"
+            "message": "Success! You may proceed in executing the commands on your robot!",
             "error_message": validation_result["error_message"],
             "arduino_commands": arduino_commands
         }
