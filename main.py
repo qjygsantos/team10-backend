@@ -136,7 +136,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
     return ' '.join(texts_inside_box) if texts_inside_box else "no text detected"
 
     
-def match_text_with_commands(text, symbol_type=None):
+def text_matching(text, symbol_type=None):
     normalized_text = text.strip().lower()
 
     if normalized_text == "no text detected":
@@ -165,12 +165,12 @@ def match_text_with_commands(text, symbol_type=None):
             highest_ratio = ratio
             best_match = predefined
 
-    if best_match == "for i in range" and highest_ratio >= 50:
+    if best_match == "for i in range" and highest_ratio >= 65:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         return f"i in range 1 to {num}" if len(num) < 3 else f"unknown condition ({text})"
 
-    elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
+    elif best_match == "if obstacle cm ahead" and highest_ratio >= 65:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         return f"obstacle {num}cm ahead" if len(num) < 3 else f"unknown condition ({text})"
@@ -179,7 +179,7 @@ def match_text_with_commands(text, symbol_type=None):
         return best_match if highest_ratio >= 65 else f"unknown condition ({text})"
 
     else:
-        return best_match if highest_ratio >= 35 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 60 else f"unknown command ({text})"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
