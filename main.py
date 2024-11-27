@@ -165,21 +165,21 @@ def text_matching(text, symbol_type=None):
             highest_ratio = ratio
             best_match = predefined
 
-    if best_match == "for i in range" and highest_ratio >= 65:
+    if best_match == "for i in range" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         return f"i in range 1 to {num}" if len(num) < 3 else f"unknown condition ({text})"
 
-    elif best_match == "if obstacle cm ahead" and highest_ratio >= 65:
+    elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         return f"obstacle {num}cm ahead" if len(num) < 3 else f"unknown condition ({text})"
 
     elif best_match == "while obstacle not detected":
-        return best_match if highest_ratio >= 65 else f"unknown condition ({text})"
+        return best_match if highest_ratio >= 50 else f"unknown condition ({text})"
 
     else:
-        return best_match if highest_ratio >= 60 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 50 else f"unknown command ({text})"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
