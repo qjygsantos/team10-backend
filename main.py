@@ -1067,7 +1067,7 @@ def validate_pseudocode(pseudocode: str):
     def generate_error(line_no, line_text, description):
         return {
             "status": "fail",
-            "line_with_error": line_text
+            "line_with_error": line_text,
             "error_message": f"""
 line {line_no}
     {line_text}
