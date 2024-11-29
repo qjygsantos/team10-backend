@@ -33,7 +33,7 @@ from fuzzywuzzy import fuzz
 import re
 
 
-# Ensure the necessary directories exist
+# Ensure the 
 for directory in ['static/objects', 'static/detected_images']:
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -512,6 +512,7 @@ def print_result(detection_result, image_path):
         cv2.imwrite(image_path, image)
         return image_path
 
+
 def print_result_with_ocr(result, image_path):
             detections = sv.Detections.from_ultralytics(result)
 
@@ -528,6 +529,7 @@ def print_result_with_ocr(result, image_path):
 
 
 import time
+
 
 def convert_to_pseudocode(detections):
     start_time = time.time()
@@ -742,10 +744,14 @@ def convert_to_pseudocode(detections):
                     pseudocode.append("    END FOR")
 
                     i = j  # Skip to after the decision block
+
+            #unknown text
             elif j < n and detections[j]['type'] == 'decision' and \
             (detections[j]['command'].startswith("unknown") or detections[j]['command'].startswith("no text")):
+                pseudocode.append(f"    {command}")
                 decision_command = capitalize_words(detections[j]['command'])
                 pseudocode.append(f"    {decision_command}")
+                i = j  # Skip to after the decision block
 
             else:
                 pseudocode.append(f"    {command}")
@@ -894,13 +900,13 @@ def convert_to_pseudocode(detections):
 
         i += 1
 
-
     # END will be added if not detected
     if not end_detected:
         pseudocode.append("END")
 
     return "\n".join(pseudocode)
-    
+
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "Move Forward": "F",
@@ -993,57 +999,102 @@ def is_valid_flowchart(sorted_result):
     num_arrows = 0
     num_arrowheads = 0
     num_process_data = 0
-    num_symbols = 0
     num_decision = 0
+    num_symbols = 0
     command_none_count = 0
+    invalid_decision_count = 0
+    elbow_arrow_count = 0
     terminator_commands = []  # Store commands of terminator symbols
+    errors = []  # To accumulate error messages
 
+    # Analyze sorted_result
     for detection in sorted_result:
         label = detection['type']
-        command = detection['command']
-        
+        command = detection.get('command', None)
+
         if label not in ['arrow', 'arrowhead']:
             num_symbols += 1
 
             if label in ['process', 'data']:
                 num_process_data += 1
-                if command is None or command.startswith("INVALID TEXT"):
+                if command is None or command.startswith("unknown"):
                     command_none_count += 1
-                    
+
             elif label == 'decision':
                 num_decision += 1
-                if command is None or command.startswith("INVALID TEXT"):
-                    command_none_count += 1
-                    
+                if command is None or command.startswith("unknown"):
+                    invalid_decision_count += 1
+
             elif label == 'terminator':
                 num_terminators += 1
-                if command is None or command.startswith("INVALID TEXT"):
+                if command is None or command.startswith("unknown"):
                     command_none_count += 1
                 else:
                     terminator_commands.append(command.strip().lower())
-                        
+
         elif label == 'arrow':
             num_arrows += 1
+            # Check if the arrow is an elbow arrow
+            if any(
+                detection.get(key, False)
+                for key in ['elbow_top_left', 'elbow_bottom_curved', 'elbow_top_right', 'elbow_bottom_left']
+            ):
+                elbow_arrow_count += 1
+
         elif label == 'arrowhead':
             num_arrowheads += 1
 
-    # Check the conditions for terminators
-    if num_terminators != 2 or "start" not in terminator_commands or "end" not in terminator_commands:
-        return False  # Invalid flowchart due to terminator condition
+    # Error Conditions
+    if num_terminators != 2 or set(terminator_commands) != {'start', 'end'}:
+        errors.append("Flowchart must contain exactly two terminators: 'start' and 'end'.")
 
-    # Check the other conditions
-    if (
-        len(sorted_result) <= 5 or 
-        num_arrows <= 1 or
-        num_arrowheads <= 1 or
-        num_arrowheads <= num_arrows * 0.75 or
-        num_arrows <= num_arrowheads * 0.75 or
-        num_process_data == 0 or
-        command_none_count >= 2
-    ):
-        return False  # Invalid flowchart
+    if abs(num_arrows - num_symbols) > 3:
+        errors.append("Missing arrows.")
 
-    return True  # Valid flowchart
+    if num_process_data == 0:
+        errors.append("Flowchart must include at least one process or data symbol.")
+
+    if invalid_decision_count > 0:
+        errors.append("Decision symbol/s contain invalid text.")
+
+    if num_decision > elbow_arrow_count:
+        errors.append("Arrows in the decision loop are incomplete.")
+
+    if command_none_count > 2:
+        errors.append("Too many invalid texts were found in process/data symbols.")
+
+    if abs(num_arrows - num_arrowheads) > 3:
+        errors.append("Too many arrows with missing arrowheads.")
+
+    # Minor Issues
+    minor_issues = []
+    if command_none_count == 1 or command_none_count == 2:
+        minor_issues.append("Invalid text/s were found in process / data symbol. Replace it with a correct command syntax.")
+    if 1 <= abs(num_arrows - num_symbols) <= 2:
+        minor_issues.append(f"There are {num_symbols} symbols found in the flowchart but {num_arrows} arrows. Verify the pseudocode.")
+    if 1 <= abs(num_arrows - num_arrowheads) <= 2:
+        minor_issues.append(f"There are {num_arrows} arrows found in the flowchart but {num_arrowheads} arrowheads. Verify the pseudocode.")
+
+    # Final Decision
+    if not errors and not minor_issues:
+        return {
+            "status": "success",
+            "error_list": "",
+            "dialog_message": "No errors were found! You may click 'Next' to proceed."
+        }
+    elif not errors and minor_issues:
+        return {
+            "status": "success",
+            "error_list": "\n".join(minor_issues),
+            "dialog_message": "Click next to proceed. Double-check the pseudocode before running the commands on the robot!"
+        }
+    else:
+        return {
+            "status": "failed",
+            "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + "\n".join(errors),
+            "dialog_message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details."
+        }
+
 
 def validate_pseudocode(pseudocode: str):
     # Valid commands
@@ -1074,7 +1125,7 @@ def validate_pseudocode(pseudocode: str):
     def generate_error(line_no, line_text, description):
         return {
             "status": "fail",
-            "line_with_error": line_text,
+            "line_with_error": line_no,
             "error_message": f"""
 line {line_no}
     {line_text}
@@ -1221,51 +1272,39 @@ async def upload_image(file: UploadFile = File(...)):
 
     # Sort
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
-
-
+    
+    checking_result = is_valid_flowchart(sorted_result)
+    
     # Checking Flowchart
-    if not is_valid_flowchart(sorted_result):
-        
-        pseudocode_result = "Certain symbols were not recognized properly. Please double-check your input and try again!"
-        arduino_commands = ""
-
+    if checking_result["status"] == "failed":
+             
         # Save the image with detections
         print_result(detection_result, resized_image_path)
-        # Save the pseudocode 
-        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
-        with open(pseudocode_path, 'w') as pseudocode_file:
-            pseudocode_file.write(pseudocode_result)
             
         # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(resized_image_path)}')
         blob.upload_from_filename(resized_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
     
-        # Upload pseudocode to Firebase Storage
-        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
-        pseudocode_blob.upload_from_filename(pseudocode_path)
-        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
         # Clean up temporary files
         os.remove(image_path)
         os.remove(resized_image_path)
-        os.remove(pseudocode_path)
         
         return JSONResponse({
             "status": "Failed",
-            "message": "Certain symbols were not recognized properly. Please double-check your input and try again!",
             "image_url": image_url,
-            "pseudocode_url": pseudocode_url,
-            "arduino_commands": arduino_commands
+            "message": checking_result["dialog_message"],
+            "error_list": checking_result["error_list"]
         })
         
     else:
-        # Convert 
-        pseudocode_result = convert_to_pseudocode(sorted_result)
-        arduino_commands = translate_pseudocode(pseudocode_result)
-    
+
         # Save the image with detections
         print_result_with_ocr(result, resized_image_path)
+        
+        # Convert to pseudocode
+        pseudocode_result = convert_to_pseudocode(sorted_result)
         
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
@@ -1291,7 +1330,8 @@ async def upload_image(file: UploadFile = File(...)):
             "status": "Success",
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
-            "arduino_commands": arduino_commands
+            "message": checking_result["dialog_message"],
+            "error_list": checking_result["error_list"]
         })
         
 
@@ -1308,10 +1348,10 @@ async def translate_pseudocode_from_file(file: UploadFile):
     validation_result = validate_pseudocode(pseudocode)
     if validation_result["status"] == "fail":
         return {
-            "status": "Fail",
-            "message": "Uh oh, there's an error in your pseudocode, tap the error symbol on the top-right corner to check which caused it.",
-            "error_message": validation_result["error_message"],
-            "highlighted_line": validation_result["line_with_error"],
+            "status": "Failed",
+            "message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details.",
+            "error_list": validation_result["error_message"],
+            "line_with_error": validation_result["line_with_error"],
             "arduino_commands": ""  # Return an empty string if validation fails
         }
 
@@ -1320,8 +1360,9 @@ async def translate_pseudocode_from_file(file: UploadFile):
         arduino_commands = translate_pseudocode(pseudocode)
         return {
             "status": "Success",
-            "message": "Success! You may proceed in executing the commands on your robot!",
-            "error_message": validation_result["error_message"],
+            "message": "Success! Your robot is ready to go!",
+            "error_list": "",
+            "line_with_error": "",
             "arduino_commands": arduino_commands
         }
     except Exception as e:
