@@ -1303,7 +1303,7 @@ async def upload_image(file: UploadFile = File(...)):
 
         # Save the image with detections
         print_result_with_ocr(result, resized_image_path)
-        
+        arduino_commands = translate_pseudocode(pseudocode)
         # Convert to pseudocode
         pseudocode_result = convert_to_pseudocode(sorted_result)
         
@@ -1333,7 +1333,7 @@ async def upload_image(file: UploadFile = File(...)):
             "pseudocode_url": pseudocode_url,
             "message": checking_result["dialog_message"],
             "error_list": checking_result["error_list"],
-            "arduino_commands": ""
+            "arduino_commands": arduino_commands
         })
         
 
