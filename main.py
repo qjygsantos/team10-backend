@@ -1295,7 +1295,8 @@ async def upload_image(file: UploadFile = File(...)):
             "status": "Failed",
             "image_url": image_url,
             "message": checking_result["dialog_message"],
-            "error_list": checking_result["error_list"]
+            "error_list": checking_result["error_list"],
+            "arduino_commands": ""
         })
         
     else:
@@ -1331,7 +1332,8 @@ async def upload_image(file: UploadFile = File(...)):
             "image_url": image_url,
             "pseudocode_url": pseudocode_url,
             "message": checking_result["dialog_message"],
-            "error_list": checking_result["error_list"]
+            "error_list": checking_result["error_list"],
+            "arduino_commands": ""
         })
         
 
