@@ -186,7 +186,8 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 35 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 25 else f"unknown command ({text})"
+        
     else:
         return best_match if highest_ratio >= 45 else f"unknown command ({text})"
     
@@ -488,7 +489,7 @@ def print_result(detection_result, image_path):
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
             label = f"{detection['order']}. {detection['type']}"
             if detection['command']:
