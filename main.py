@@ -140,7 +140,7 @@ def text_matching(text, symbol_type=None):
     normalized_text = text.strip().lower()
 
     if normalized_text == "no text detected":
-        return None
+        return normalized_text
 
     # Initialize variables to track the best match and highest ratio
     best_match = None
@@ -156,7 +156,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "data":
         predefined_list = input_output
     else:
-        return "unrecognized text"  # Return invalid if symbol_type is unrecognized
+        return "unknown command/condition"  # Return invalid if symbol_type is unrecognized
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
@@ -165,12 +165,12 @@ def text_matching(text, symbol_type=None):
             highest_ratio = ratio
             best_match = predefined
 
-    if best_match == "for i in range" and highest_ratio >= 50:
+    if best_match == "for i in range" and highest_ratio >= 55:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         return f"i in range 1 to {num}" if 0 < len(num) < 3 else f"unknown condition ({text})"
 
-    elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
+    elif best_match == "if obstacle cm ahead" and highest_ratio >= 55:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         try:
@@ -183,10 +183,12 @@ def text_matching(text, symbol_type=None):
             return f"obstacle 100cm ahead"
 
     elif best_match == "while obstacle not detected":
-        return best_match if highest_ratio >= 50 else f"unknown condition ({text})"
+        return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
+    elif best_match in ['start', 'end']:
+        return best_match if highest_ratio >= 35 else f"unknown command ({text})"
     else:
-        return best_match if highest_ratio >= 50 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 45 else f"unknown command ({text})"
     
 def check_arrows(detection_result, term_y2, arrow_data):
     for arrow in arrow_data:
@@ -390,7 +392,7 @@ def detect_diagram(thresh_image):
             'coordinates': (x, y),
             'height': height,
             'width': width,
-            'command': matched_command if text != "no text detected" else text,
+            'command': '' if class_name.lower() in ['arrow', 'arrowhead'] else matched_command,
             'pos': pos,
             'elbow_top_left': False,  # Default to False
             'elbow_bottom_curved': False,
@@ -459,7 +461,7 @@ def print_result(detection_result, image_path):
         image_height, image_width = image.shape[:2]
 
         # Base scale for text
-        base_scale = 0.04  # Experiment with this value as needed
+        base_scale = 0.03 # Experiment with this value as needed
 
         print("Inference Results with OCR:")
         for detection in detection_result:
@@ -486,7 +488,7 @@ def print_result(detection_result, image_path):
             y1 = int(detection["coordinates"][1] - detection["height"] // 2)
             x2 = int(detection["coordinates"][0] + detection["width"] // 2)
             y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
             label = f"{detection['order']}. {detection['type']}"
             if detection['command']:
@@ -499,15 +501,15 @@ def print_result(detection_result, image_path):
 
             # Draw text on the image
             if detection['type'] == "arrowhead":
-                cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
+                cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
             elif detection['type'] == "terminator" and detection['command'] == "end":
-                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
+                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
             elif detection['type'] == "arrow":
-                cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
+                cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
             elif detection['type'] == "decision":
-                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
+                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
             else:
-                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
+                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
 
         cv2.imwrite(image_path, image)
         return image_path
@@ -1017,17 +1019,17 @@ def is_valid_flowchart(sorted_result):
 
             if label in ['process', 'data']:
                 num_process_data += 1
-                if command is None or command.startswith("unknown"):
+                if command.startswith("no text") or command.startswith("unknown"):
                     command_none_count += 1
 
             elif label == 'decision':
                 num_decision += 1
-                if command is None or command.startswith("unknown"):
+                if command.startswith("no text") or command.startswith("unknown"):
                     invalid_decision_count += 1
 
             elif label == 'terminator':
                 num_terminators += 1
-                if command is None or command.startswith("unknown"):
+                if command.startswith("no text") or command.startswith("unknown"):
                     command_none_count += 1
                 else:
                     terminator_commands.append(command.strip().lower())
