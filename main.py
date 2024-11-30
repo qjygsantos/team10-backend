@@ -1282,7 +1282,7 @@ async def upload_image(file: UploadFile = File(...)):
     if checking_result["status"] == "failed":
              
         # Save the image with detections
-        print_result(detection_result, resized_image_path)
+        print_result(sorted_result, resized_image_path)
             
         # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(resized_image_path)}')
