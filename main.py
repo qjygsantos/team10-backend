@@ -190,7 +190,7 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 30 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 20 else f"unknown command ({text})"
         
     else:
         return best_match if highest_ratio >= 45 else f"unknown command ({text})"
