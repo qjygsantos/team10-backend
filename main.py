@@ -160,7 +160,7 @@ def text_matching(text, symbol_type=None):
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
-        if predefined in start_end:  # Check if `predefined` is in the `start_end` list
+        if predefined not in predefined_conditions:  # Check if `predefined` is in the `start_end` list
             ratio = fuzz.WRatio(predefined, normalized_text)
         else:
             ratio = fuzz.ratio(predefined, normalized_text)
@@ -190,7 +190,7 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 15 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 25 else f"unknown command ({text})"
         
     else:
         return best_match if highest_ratio >= 45 else f"unknown command ({text})"
