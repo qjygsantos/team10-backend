@@ -18,6 +18,7 @@ COPY . .
 
 
 RUN pip install opencv-python-headless==4.10.0.84
+RUN pip install --upgrade google-cloud-vision
 
 # Expose the port that the app will run on
 EXPOSE 8080
