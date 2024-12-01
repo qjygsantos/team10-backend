@@ -160,17 +160,21 @@ def text_matching(text, symbol_type=None):
 
     # Iterate through the relevant predefined strings
     for predefined in predefined_list:
-        ratio = fuzz.ratio(predefined, normalized_text)
+        if predefined in start_end:  # Check if `predefined` is in the `start_end` list
+            ratio = fuzz.WRatio(predefined, normalized_text)
+        else:
+            ratio = fuzz.ratio(predefined, normalized_text)
+
         if ratio > highest_ratio:
             highest_ratio = ratio
             best_match = predefined
 
-    if best_match == "for i in range" and highest_ratio >= 55:
+    if best_match == "for i in range" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         return f"i in range 1 to {num}" if 0 < len(num) < 3 else f"unknown condition ({text})"
 
-    elif best_match == "if obstacle cm ahead" and highest_ratio >= 55:
+    elif best_match == "if obstacle cm ahead" and highest_ratio >= 50:
         temp = re.findall(r'\d+', normalized_text)
         num = ''.join(temp)
         try:
