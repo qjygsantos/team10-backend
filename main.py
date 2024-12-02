@@ -1287,11 +1287,22 @@ async def upload_image(file: UploadFile = File(...)):
              
         # Save the image with detections
         print_result(sorted_result, resized_image_path)
+        pseudocode_result = convert_to_pseudocode(sorted_result)
+
+        # Save the pseudocode 
+        pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
+        with open(pseudocode_path, 'w') as pseudocode_file:
+            pseudocode_file.write(pseudocode_result)    
             
         # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(resized_image_path)}')
         blob.upload_from_filename(resized_image_path)
         image_url = blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+    
+        # Upload pseudocode to Firebase Storage
+        pseudocode_blob = bucket.blob(f'detected_images/{os.path.basename(pseudocode_path)}')
+        pseudocode_blob.upload_from_filename(pseudocode_path)
+        pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
     
 
         # Clean up temporary files
@@ -1301,6 +1312,7 @@ async def upload_image(file: UploadFile = File(...)):
         return JSONResponse({
             "status": "Failed",
             "image_url": image_url,
+            "pseudocode_url": pseudocode_url,
             "message": checking_result["dialog_message"],
             "error_list": checking_result["error_list"],
             "arduino_commands": ""
