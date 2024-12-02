@@ -562,7 +562,7 @@ def convert_to_pseudocode(detections):
         # Terminator symbols
         if element['type'] == 'terminator':
             if element['command'] == 'start':
-                    pseudocode.append("BEGIN")
+                    pseudocode.append("START")
             elif element['command'] == 'end':
                     pseudocode.append("END")
                     end_detected = True  # Mark END
@@ -955,7 +955,7 @@ def translate_pseudocode(pseudocode):
     for line in pseudocode.split('\n'):
         line = line.strip()
 
-        if line.lower().startswith("begin") or line == "":
+        if line.lower().startswith("start") or line == "":
             continue  # Skip BEGIN and empty lines
 
         elif line.lower().startswith("for"):
@@ -1155,7 +1155,7 @@ SyntaxError: {description}"""
         nonlocal has_commands
         line = line.strip().lower()  # Case-insensitive
 
-        if line in {"begin", "end"}:
+        if line in {"start", "end"}:
             return None  # BEGIN and END are checked later
 
         if line.startswith("for i in range 1 to "):
@@ -1214,8 +1214,8 @@ SyntaxError: {description}"""
         return None
 
     # First and last lines must be BEGIN and END
-    if pseudocode_lines[0].strip().lower() != "begin":
-        return generate_error(1, pseudocode_lines[0], "first line must be 'begin'")
+    if pseudocode_lines[0].strip().lower() != "start":
+        return generate_error(1, pseudocode_lines[0], "first line must be 'start'")
     if pseudocode_lines[-1].strip().lower() != "end":
         return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'end'")
 
@@ -1226,8 +1226,8 @@ SyntaxError: {description}"""
             return error
 
     # Additional checking
-    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "begin" and pseudocode_lines[1].strip().lower() == "end":
-        return generate_error(1, pseudocode_lines[0], "'begin' and 'end' only, no commands between")
+    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "start" and pseudocode_lines[1].strip().lower() == "end":
+        return generate_error(1, pseudocode_lines[0], "'start' and 'end' only, no commands between")
     if for_stack:
         return generate_error(for_stack[-1], pseudocode_lines[for_stack[-1] - 1], "'for i in range 1 to n' without matching 'end for'")
     if conditional_stack:
