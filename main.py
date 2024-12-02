@@ -95,7 +95,7 @@ predefined_conditions = [
 
 predefined_conditions = ["for i in range", "while obstacle not detected", "if obstacle cm ahead"]
 
-input_output = ["read distance", "check obstacle", "set speed to slow", "set speed to medium", "set speed to high"]
+input_output = ["set speed to slow", "set speed to medium", "set speed to high"]
 
 model = YOLO('models/yolov5m-98mAP.pt')
 
@@ -190,7 +190,7 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 25 else f"unknown command ({text})"
+        return best_match if highest_ratio >= 40 else f"unknown command ({text})"
         
     else:
         return best_match if highest_ratio >= 45 else f"unknown command ({text})"
