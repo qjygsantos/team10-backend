@@ -467,7 +467,7 @@ def print_result(detection_result, image_path):
         image_height, image_width = image.shape[:2]
 
         # Base scale for text
-        base_scale = 0.03 # Experiment with this value as needed
+        base_scale = 0.0275 # Experiment with this value as needed
 
         print("Inference Results with OCR:")
         for detection in detection_result:
