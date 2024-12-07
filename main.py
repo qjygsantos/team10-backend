@@ -297,7 +297,7 @@ def detect_diagram(thresh_image):
 # Load image
 
     thresh_img_3channel = cv2.cvtColor(thresh_image, cv2.COLOR_GRAY2BGR)  # Convert back to 3 channels
-    result = model.predict(thresh_img_3channel, conf=0.3, iou=0.7)[0]
+    result = model.predict(thresh_img_3channel, conf=0.25, iou=0.7)[0]
 
 
     result_ocr = perform_OCR(thresh_image)
@@ -429,7 +429,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
     
     
     # Apply NMS
-    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.3, nms_threshold=0.7)
+    indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.25, nms_threshold=0.7)
     
     # Make sure indices are crrect
     if len(indices) > 0:
@@ -463,6 +463,7 @@ def sort_results(detection_result, boxes, confidences, arrow_data):
 
 def print_result(detection_result, image_path):
         image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image_height, image_width = image.shape[:2]
 
         # Base scale for text
@@ -488,33 +489,35 @@ def print_result(detection_result, image_path):
             else:
                 x = detection["coordinates"][0]
                 y = detection["coordinates"][1]
-
-            x1 = int(detection["coordinates"][0] - detection["width"] // 2)
-            y1 = int(detection["coordinates"][1] - detection["height"] // 2)
-            x2 = int(detection["coordinates"][0] + detection["width"] // 2)
-            y2 = int(detection["coordinates"][1] + detection["height"] // 2)
-            cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
-
-            label = f"{detection['order']}. {detection['type']}"
-            if detection['command']:
-                label += f" ({detection['command']})"
-
-            # Calculate font scale based on image dimensions
-                            # Calculate font scale based on image dimensions
-            font_scale = ((image_width*1.25+image_height*0.75)/2)/(50/base_scale)
-            
-
-            # Draw text on the image
-            if detection['type'] == "arrowhead":
-                cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
-            elif detection['type'] == "terminator" and detection['command'] == "end":
-                cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
-            elif detection['type'] == "arrow":
-                cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
-            elif detection['type'] == "decision":
-                cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
-            else:
-                cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
+                
+            if detection["type"] != "arrowhead":
+                
+                x1 = int(detection["coordinates"][0] - detection["width"] // 2)
+                y1 = int(detection["coordinates"][1] - detection["height"] // 2)
+                x2 = int(detection["coordinates"][0] + detection["width"] // 2)
+                y2 = int(detection["coordinates"][1] + detection["height"] // 2)
+                cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
+    
+                label = f"{detection['order']}. {detection['type']}"
+                if detection['command']:
+                    label += f" ({detection['command']})"
+    
+                # Calculate font scale based on image dimensions
+                                # Calculate font scale based on image dimensions
+                font_scale = ((image_width*1.25+image_height*0.75)/2)/(50/base_scale)
+                
+    
+                # Draw text on the image
+                if detection['type'] == "arrowhead":
+                    cv2.putText(image, label, (x2, y1), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
+                elif detection['type'] == "terminator" and detection['command'] == "end":
+                    cv2.putText(image, label, (x1 - 25, y2 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
+                elif detection['type'] == "arrow":
+                    cv2.putText(image, label, (x1 , y1 - 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
+                elif detection['type'] == "decision":
+                    cv2.putText(image, label, (x1 - 60, y1 + 10), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
+                else:
+                    cv2.putText(image, label, (x1 - 20, y1 + 5), cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
 
         cv2.imwrite(image_path, image)
         return image_path
