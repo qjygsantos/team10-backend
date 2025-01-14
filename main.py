@@ -31,37 +31,12 @@ from IPython.display import Image as IPyImage
 from ultralytics import YOLO
 from fuzzywuzzy import fuzz
 import re
+import gdown
 
-
-# Ensure the 
-for directory in ['static/objects', 'static/detected_images']:
+# Ensure the necessary directories exist
+for directory in ['static/objects', 'static/detected_images', 'models']:
     if not os.path.exists(directory):
         os.makedirs(directory)
-
-# Function to download the model from Google Drive
-def download_model_from_gdrive(file_id, destination):
-    import requests
-
-    URL = "https://drive.google.com/uc?id={}".format(file_id)
-    response = requests.get(URL, stream=True)
-    if response.status_code == 200:
-        with open(destination, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
-        print(f"Model downloaded successfully to {destination}")
-    else:
-        raise Exception(f"Failed to download model from Google Drive. Status code: {response.status_code}")
-
-# Google Drive File ID for the model
-MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"
-MODEL_PATH = "models/currentmodel.pt"
-
-# Download the model if it doesn't exist locally
-if not os.path.exists(MODEL_PATH):
-    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-    print("Downloading model from Google Drive...")
-    download_model_from_gdrive(MODEL_FILE_ID, MODEL_PATH)
 
 # Create JSON files from environment variables
 google_credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -110,6 +85,20 @@ predefined_conditions = ["repeat times", "no obstacle", "obstacle detected"]
 input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 
 yes_no = ["yes", "no"]
+
+# Google Drive model file ID
+MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"  # Replace this with your actual model file ID
+MODEL_PATH = "models/currentmodel.pt"  # Save model to this path
+
+# Download the model from Google Drive to the 'models' directory
+def download_model():
+    url = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
+    output_path = MODEL_PATH
+    if not os.path.exists(output_path):
+        gdown.download(url, output_path, quiet=False)
+
+# Download the model if it's not already present
+download_model()
 
 # Load the model
 model = YOLO(MODEL_PATH)
