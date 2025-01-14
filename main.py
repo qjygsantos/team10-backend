@@ -34,7 +34,7 @@ import re
 import gdown
 
 # Ensure the necessary directories exist
-for directory in ['static/objects', 'static/detected_images', 'models']:
+for directory in ['static/objects', 'static/detected_images']:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -88,7 +88,7 @@ yes_no = ["yes", "no"]
 
 # Google Drive model file ID
 MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"  # Replace this with your actual model file ID
-MODEL_PATH = "models/currentmodel.pt"  # Save model to this path
+MODEL_PATH = "static/currentmodel.pt"  # Save model to this path
 
 # Download the model from Google Drive to the 'models' directory
 def download_model():
