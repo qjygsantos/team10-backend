@@ -11,6 +11,7 @@ google-cloud-storage==2.8.0
 firebase-admin
 torch
 uvicorn
+gdown
 python-multipart
 python-Levenshtein
 ultralytics
