@@ -34,7 +34,7 @@ import re
 import gdown
 
 # Ensure the necessary directories exist
-for directory in ['static/objects', 'static/detected_images']:
+for directory in ['static/objects', 'static/detected_images', 'static/models']:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -57,7 +57,6 @@ app = FastAPI()
 
 # Serve static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/models", StaticFiles(directory="models"), name="models")
 templates = Jinja2Templates(directory="templates")
 
 # Initialize Firebase Admin
