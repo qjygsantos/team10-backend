@@ -103,17 +103,13 @@ download_model()
 model = YOLO(MODEL_PATH)
 
 def preprocess_image(image):
-    #preprocess image for OCR
+    #for OCR
     grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
 
-    #separate preprocessing for obj. detection
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(10, 10))
-    grey = clahe.apply(grey)
-    thresh2 = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
+    #for obj. detection
     thresh2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2BGR)
     
-    return thresh2, thresh
+    return thresh2, grey
 
 def perform_OCR(image_np):
 
