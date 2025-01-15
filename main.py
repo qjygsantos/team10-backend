@@ -107,7 +107,7 @@ def preprocess_image(image):
     grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     #for obj. detection
-    thresh2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2BGR)
+    thresh2 = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
     
     return thresh2, grey
 
