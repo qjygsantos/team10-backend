@@ -108,10 +108,12 @@ def preprocess_image(image):
     thresh = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
     
     #for obj. detection
-    #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(10, 10))
-    #grey = clahe.apply(grey)
-    #thresh2 = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
-    thresh2 = image
+    blurred = cv2.GaussianBlur(grey, (3, 3), 0)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(10, 10))
+    clahe = clahe.apply(blurred)
+    thresh2 = cv2.adaptiveThreshold(clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
+    thresh2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2BGR)
+    
     return thresh2, thresh
 
 def perform_OCR(image_np):
