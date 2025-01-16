@@ -834,7 +834,7 @@ def convert_to_pseudocode(detections):
     def capitalize_words(text):
         return ' '.join(word.capitalize() for word in text.split())
 
-    while i < n:
+    while i < len(detections):
         element = detections[i]
 
         # Terminator symbols
@@ -853,7 +853,7 @@ def convert_to_pseudocode(detections):
 
         # Decision symbols (nested decision not yet implemented)
         #HORIZONTAL REPEAT/WHILE LOOP
-        elif j < n and element['type'] == 'decision' and \
+        elif j < len(detections) and element['type'] == 'decision' and \
         element['for_while_horizontal'] == True:
             j = i + 1
             decision_command = element['command']
@@ -863,12 +863,12 @@ def convert_to_pseudocode(detections):
             else:
                 pseudocode.append(f"    {decision_command}")
 
-            while j < n and detections[j]['straight_down'] != True and (time.time() - start_time) < max_time:
+            while j < len(detections) and detections[j]['straight_down'] != True and (time.time() - start_time) < max_time:
 
-                if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
 
-                elif j < n and (detections[j]['type'] in ['process', 'data', 'terminator']):
+                elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator']):
                     command = detections[j]['command']
                     pseudocode.append(f"        {command}")
                     j += 1
@@ -882,7 +882,7 @@ def convert_to_pseudocode(detections):
 
 
         # DO WHILE LOOP / DO REPEAT LOOP
-        elif j < n and element['type'] == 'decision' and \
+        elif j < len(detections) and element['type'] == 'decision' and \
         element['for_while_horizontal'] == False and \
         detections[i + 1]['elbow_top_left'] == True:
 
@@ -897,7 +897,7 @@ def convert_to_pseudocode(detections):
 
             # go upwards til it finds the end of loop body
             k = i - 1
-            while k < n and \
+            while k < len(detections) and \
             detections[k]['coordinates'][1] - detections[k]['height'] // 2 >= \
             detections[i + 1]['coordinates'][1] - detections[i + 1]['height'] // 2:
 
@@ -908,7 +908,7 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"        {detections[k]['command']}") #append the first item of loop body
 
             #now go downwards to get the other items til it goes back to decision symbol
-            while k < n and detections[k]['type'] != 'decision' and detections[k]['coordinates'][1] != do_while_y_coord:
+            while k < len(detections) and detections[k]['type'] != 'decision' and detections[k]['coordinates'][1] != do_while_y_coord:
 
                 k += 1
 
@@ -916,7 +916,7 @@ def convert_to_pseudocode(detections):
 
                     pseudocode.append(f"        {detections[k]['command']}")
 
-                if k < n and detections[k]['type'] == 'decision' and \
+                if k < len(detections) and detections[k]['type'] == 'decision' and \
                 detections[k]['for_while'] == False and \
                 detections[k + 1]['elbow_top_left'] == False and \
                 detections[k]['command'] in ["obstacle detected", "no obstacle"]:
@@ -939,7 +939,7 @@ def convert_to_pseudocode(detections):
                     l = k
                     l += 1
 
-                    while l < n and detections[l]['type'] in ['arrow', 'arrowhead']:
+                    while l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
 
                         if detections[l]['type'] == 'arrowhead' and \
                         (decision_x1 < detections[l]['coordinates'][0] < decision_x2) and \
@@ -950,16 +950,16 @@ def convert_to_pseudocode(detections):
                         l += 1
 
                     # Find the next non-arrow element
-                    while l < n and (time.time() - start_time) < max_time:
+                    while l < len(detections) and (time.time() - start_time) < max_time:
 
                         # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
                         if detections[l]['type'] == 'arrowhead' and decision_x1 < detections[l]['coordinates'][0] < decision_x2:
                             break
 
-                        elif l < n and detections[l]['type'] in ['arrow', 'arrowhead']:
+                        elif l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
                             l += 1
 
-                        elif l < n and (detections[l]['type'] in ['process', 'data', 'terminator', 'decision']):
+                        elif l < len(detections) and (detections[l]['type'] in ['process', 'data', 'terminator', 'decision']):
 
                             command = detections[l]['command']
                             if detections[l]['x1'] < decision_x:
@@ -1009,7 +1009,7 @@ def convert_to_pseudocode(detections):
 
 
         #REPEAT/WHILE LOOP
-        elif j < n and element['type'] == 'decision' and \
+        elif j < len(detections) and element['type'] == 'decision' and \
         element['for_while'] == True and \
         element['for_while_horizontal'] == False and \
         detections[i+1]['elbow_top_left'] == False:
@@ -1028,9 +1028,9 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"    {decision_command}")
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+            while j < len(detections) and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
 
-                if j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
 
                     if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
                       popped_item = detections.pop(j)
@@ -1038,7 +1038,7 @@ def convert_to_pseudocode(detections):
                       j -= 1 # Decrement j here
                     j += 1
 
-                elif j < n and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
+                elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
                     command = detections[j]['command']
                     if ((detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x)):
                         popped_item = detections.pop(j)
@@ -1057,7 +1057,7 @@ def convert_to_pseudocode(detections):
                 if detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
 
-                elif j < n and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
+                elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
                     command = detections[j]['command']
                     if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
                         popped_item = detections.pop(j)
@@ -1142,7 +1142,7 @@ def convert_to_pseudocode(detections):
 
 
         #IF-ELSE CONDITION
-        elif j < n and element['type'] == 'decision' and \
+        elif j < len(detections) and element['type'] == 'decision' and \
         element['for_while'] == False and \
         element['for_while_horizontal'] == False and \
         detections[i + 1]['elbow_top_left'] == False and \
@@ -1164,21 +1164,21 @@ def convert_to_pseudocode(detections):
             decision_command = element['command']
             pseudocode.append(f"    if {decision_command}")
 
-            while j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+            while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
               if detections[j]['type'] == 'arrowhead' and (decision_x1 < detections[j]['coordinates'][0] < decision_x2) and (detections[j]['coordinates'][1] > decision_y):
                   break
               j += 1
 
             # Find the next non-arrow element while finding arrow of > 100 width
-            while j < n and (time.time() - start_time) < max_time:
+            while j < len(detections) and (time.time() - start_time) < max_time:
                 # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
                 if detections[j]['type'] == 'arrowhead' and decision_x1 < detections[j]['coordinates'][0] < decision_x2:
                     break
 
-                elif j < n and detections[j]['type'] in ['arrow', 'arrowhead']:
+                elif j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
 
-                elif j < n and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
+                elif j < len(detections) and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
                     command = detections[j]['command']
                     if detections[j]['x1'] < decision_x:
                         if reverse:
