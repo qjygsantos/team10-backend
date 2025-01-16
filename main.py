@@ -1050,11 +1050,11 @@ def convert_to_pseudocode(detections):
                     j += 1
 
 
-            if detections[j]['elbow_top_left'] == True:
+            if j < len(detections) and detections[j]['elbow_top_left'] == True:
 
                 j += 1
 
-                if detections[j]['type'] in ['arrow', 'arrowhead']:
+                if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                     j += 1
 
                 elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
@@ -1101,7 +1101,7 @@ def convert_to_pseudocode(detections):
                 i = j  # Skip to after the decision block
 
 
-            elif detections[j]['elbow_bottom_curved'] == True or detections[j]['elbow_bottom_left'] == True:
+            elif j < len(detections) and (detections[j]['elbow_bottom_curved'] == True or detections[j]['elbow_bottom_left'] == True):
 
                 j -= 1
 
@@ -1172,7 +1172,7 @@ def convert_to_pseudocode(detections):
             # Find the next non-arrow element while finding arrow of > 100 width
             while j < len(detections) and (time.time() - start_time) < max_time:
                 # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
-                if detections[j]['type'] == 'arrowhead' and decision_x1 < detections[j]['coordinates'][0] < decision_x2:
+                if j < len(detections) and detections[j]['type'] == 'arrowhead' and decision_x1 < detections[j]['coordinates'][0] < decision_x2:
                     break
 
                 elif j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
