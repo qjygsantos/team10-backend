@@ -838,396 +838,410 @@ def convert_to_pseudocode(detections):
         return ' '.join(word.capitalize() for word in text.split())
 
     while i < len(detections):
-        element = detections[i]
-
-        # Terminator symbols
-        if element['type'] == 'terminator':
-            if element['command'] == 'start':
-                    pseudocode.append("start")
-            elif element['command'] == 'stop':
-                    pseudocode.append("stop")
-                    end_detected = True  # Mark END
-
-        # Process symbols
-        elif element['type'] in ["process", "data"]:
-            command = element['command']
-
-            pseudocode.append(f"    {command}")
-
-        # Decision symbols (nested decision not yet implemented)
-        #HORIZONTAL REPEAT/WHILE LOOP
-        elif j < len(detections) and element['type'] == 'decision' and \
-        element['for_while_horizontal'] == True:
-            j = i + 1
-            decision_command = element['command']
-
-            if not decision_command.startswith("repeat"):
-                pseudocode.append(f"    while {decision_command}")
-            else:
-                pseudocode.append(f"    {decision_command}")
-
-            while j < len(detections) and detections[j]['straight_down'] != True and (time.time() - start_time) < max_time:
-
-                if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-                    j += 1
-
-                elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator']):
-                    command = detections[j]['command']
-                    pseudocode.append(f"        {command}")
-                    j += 1
-
-            if decision_command.startswith("repeat"):
-                pseudocode.append("    endrepeat")
-            else:
-                pseudocode.append("    endwhile")
-
-            i = j
-
-
-        # DO WHILE LOOP / DO REPEAT LOOP
-        elif j < len(detections) and element['type'] == 'decision' and \
-        element['for_while_horizontal'] == False and \
-        detections[i + 1]['elbow_top_left'] == True:
-
-            do_while_y_coord = detections[i]['coordinates'][1]
-
-            decision_command = detections[i]['command']
-
-            if decision_command.startswith("repeat"):
-                pseudocode.append(f"    {decision_command}") #now append the decision symbol command
-            else:
-                pseudocode.append(f"    while {decision_command}") #check if repeat or while loop
-
-            # go upwards til it finds the end of loop body
-            k = i - 1
-            while k < len(detections) and \
-            detections[k]['coordinates'][1] - detections[k]['height'] // 2 >= \
-            detections[i + 1]['coordinates'][1] - detections[i + 1]['height'] // 2:
-
-                k -= 1
-
-            if detections[k]['type'] not in ["arrow", "arrowhead"]:
-
-                pseudocode.append(f"        {detections[k]['command']}") #append the first item of loop body
-
-            #now go downwards to get the other items til it goes back to decision symbol
-            while k < len(detections) and detections[k]['type'] != 'decision' and detections[k]['coordinates'][1] != do_while_y_coord:
-
-                k += 1
-
-                if detections[k]['type'] in ['process', 'data', 'terminator']:
-
-                    pseudocode.append(f"        {detections[k]['command']}")
-
-                if k < len(detections) and detections[k]['type'] == 'decision' and \
-                detections[k]['for_while'] == False and \
-                detections[k + 1]['elbow_top_left'] == False and \
-                detections[k]['command'] in ["obstacle detected", "no obstacle"]:
-
-                    falseBranch = []
-                    trueBranch = []
-                    decision_x = detections[k]['coordinates'][0]
-                    decision_y = element['coordinates'][1]
-                    decision_x1 = detections[k]['x1']
-                    decision_x2 = detections[k]['x2']
-
-                    if detections[k]['reverse_decision'] == True:
-                        reverse = True
-                    else:
-                        reverse = False
-
-                    decision_command = detections[k]['command']
-                    pseudocode.append(f"        if {decision_command}")
-
-                    l = k
-                    l += 1
-
-                    while l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
-
-                        if detections[l]['type'] == 'arrowhead' and \
-                        (decision_x1 < detections[l]['coordinates'][0] < decision_x2) and \
-                        (detections[l]['coordinates'][1] > decision_y):
-
-                            break
-
-                        l += 1
-
-                    # Find the next non-arrow element
-                    while l < len(detections) and (time.time() - start_time) < max_time:
-
-                        # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
-                        if detections[l]['type'] == 'arrowhead' and decision_x1 < detections[l]['coordinates'][0] < decision_x2:
-                            break
-
-                        elif l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
-                            l += 1
-
-                        elif l < len(detections) and (detections[l]['type'] in ['process', 'data', 'terminator', 'decision']):
-
-                            command = detections[l]['command']
-                            if detections[l]['x1'] < decision_x:
-                                if reverse:
-                                    trueBranch.append(command)
-                                else:
-                                    falseBranch.append(command)
-
-                            else:
-                                if reverse:
-                                    falseBranch.append(command)
-                                else:
-                                    trueBranch.append(command)
-                            l += 1
-
-                    if trueBranch:
-                        for command in trueBranch:
-                            pseudocode.append(f"           {command}")
-
-                    else:
-                        pseudocode.append(f"           do nothing")
-
-
-                    if falseBranch:
-                        pseudocode.append("       else")
-                        for command in falseBranch:
-                            pseudocode.append(f"           {command}")
-                        pseudocode.append("       endif")
-
-                    else:
-                        pseudocode.append("       endif")
-
-
-                    falseBranch = []
-                    trueBranch = []
-
-
-                    k = l  # Skip to after the decision block
-
-            if decision_command.startswith("repeat"):
-                pseudocode.append("    endrepeat")
-            else:
-                pseudocode.append("    endwhile")
-
-
-            i = k  # Skip ahead to after the decision block
-
-
-        #REPEAT/WHILE LOOP
-        elif j < len(detections) and element['type'] == 'decision' and \
-        element['for_while'] == True and \
-        element['for_while_horizontal'] == False and \
-        detections[i+1]['elbow_top_left'] == False:
-
-
-            falseBranch = []
-            
-            decision_x = element['coordinates'][0]
-            j = i + 1
-            decision_command = element['command']
-
-
-            if not decision_command.startswith("repeat"):
-                pseudocode.append(f"    while {decision_command}")
-            else:
-                pseudocode.append(f"    {decision_command}")
-
-            # Find the next non-arrow element while finding arrow of > 100 width
-            while j < len(detections) and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
-
-                if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-
-                    if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
-                      popped_item = detections.pop(j)
-                      falseBranch.append(popped_item)
-                      j -= 1 # Decrement j here
-                    j += 1
-
-                elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
-                    command = detections[j]['command']
-                    if ((detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x)):
-                        popped_item = detections.pop(j)
-                        falseBranch.append(popped_item)
-                        
-                        j -= 1 # Decrement j here
-                    else:
-                        pseudocode.append(f"        {command}")
-                    j += 1
-
-
-            if j < len(detections) and detections[j]['elbow_top_left'] == True:
-
-                j += 1
-
-                if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-                    j += 1
-
-                elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
-                    command = detections[j]['command']
-                    if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
-                        popped_item = detections.pop(j)
-                        falseBranch.append(popped_item)
-                        j -= 1 # Decrement j here
-                    else:
-                        pseudocode.append(f"        {command}")
-                    j += 1
-
-                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-                    j += 1
-
-                if j < len(detections):
-                    while (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x):
-                        popped_item = detections.pop(j)
-                        falseBranch.append(popped_item)
-                        
-                        j -= 1 # Decrement j here
+        try:
+            element = detections[i]
+
+            # Terminator symbols
+            if i < len(detections) and element['type'] == 'terminator':
+                if element['command'] == 'start':
+                        pseudocode.append("start")
+                elif element['command'] == 'stop':
+                        pseudocode.append("stop")
+                        end_detected = True  # Mark END
+    
+            # Process symbols
+            elif i < len(detections) and element['type'] in ["process", "data"]:
+                command = element['command']
+    
+                pseudocode.append(f"    {command}")
+    
+            # Decision symbols (nested decision not yet implemented)
+            #HORIZONTAL REPEAT/WHILE LOOP
+            elif i < len(detections) and element['type'] == 'decision' and \
+            element['for_while_horizontal'] == True:
+                j = i + 1
+                decision_command = element['command']
+    
+                if not decision_command.startswith("repeat"):
+                    pseudocode.append(f"    while {decision_command}")
+                else:
+                    pseudocode.append(f"    {decision_command}")
+    
+                while j < len(detections) and detections[j]['straight_down'] != True and (time.time() - start_time) < max_time:
+    
+                    if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
-
-                    command = detections[j]['command']
-                    pseudocode.append(f"        {command}")
-
-                    if decision_command.startswith("repeat"):
-                        pseudocode.append("    endrepeat")
-                    else:
-                        pseudocode.append("    endwhile")
-
-                else:
-                    if decision_command.startswith("repeat"):
-                        pseudocode.append("    endrepeat")
-                    else:
-                        pseudocode.append("    endwhile")
-
-                detections[j + 1:j + 1] = falseBranch
-
-
-                falseBranch = []
-                
-
-                i = j  # Skip to after the decision block
-
-
-            elif j < len(detections) and (detections[j]['elbow_bottom_curved'] == True or detections[j]['elbow_bottom_left'] == True):
-
-                j -= 1
-
-                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-                    j += 1
-
-                if j < len(detections):
-                    if decision_command.startswith("repeat"):
-                        pseudocode.append("    endrepeat")
-                    else:
-                        pseudocode.append("    endwhile")
-
-                else:
-                    if decision_command.startswith("repeat"):
-                        pseudocode.append("    endrepeat")
-                    else:
-                        pseudocode.append("    endwhile")
-
-                detections[j + 1:j + 1] = falseBranch
-
-                falseBranch = []
-
-                i = j  # Skip to after the decision block
-
-            else:
+    
+                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator']):
+                        command = detections[j]['command']
+                        pseudocode.append(f"        {command}")
+                        j += 1
+    
                 if decision_command.startswith("repeat"):
                     pseudocode.append("    endrepeat")
                 else:
                     pseudocode.append("    endwhile")
-
-                detections[j + 1:j + 1] = falseBranch
-
+    
+                i = j
+    
+    
+            # DO WHILE LOOP / DO REPEAT LOOP
+            elif i < len(detections) and element['type'] == 'decision' and \
+            element['for_while_horizontal'] == False and \
+            detections[i + 1]['elbow_top_left'] == True:
+    
+                do_while_y_coord = detections[i]['coordinates'][1]
+    
+                decision_command = detections[i]['command']
+    
+                if decision_command.startswith("repeat"):
+                    pseudocode.append(f"    {decision_command}") #now append the decision symbol command
+                else:
+                    pseudocode.append(f"    while {decision_command}") #check if repeat or while loop
+    
+                # go upwards til it finds the end of loop body
+                k = i - 1
+                while k < len(detections) and \
+                detections[k]['coordinates'][1] - detections[k]['height'] // 2 >= \
+                detections[i + 1]['coordinates'][1] - detections[i + 1]['height'] // 2:
+    
+                    k -= 1
+    
+                if detections[k]['type'] not in ["arrow", "arrowhead"]:
+    
+                    pseudocode.append(f"        {detections[k]['command']}") #append the first item of loop body
+    
+                #now go downwards to get the other items til it goes back to decision symbol
+                while k < len(detections) and detections[k]['type'] != 'decision' and detections[k]['coordinates'][1] != do_while_y_coord:
+    
+                    k += 1
+    
+                    if detections[k]['type'] in ['process', 'data', 'terminator']:
+    
+                        pseudocode.append(f"        {detections[k]['command']}")
+    
+                    if k < len(detections) and detections[k]['type'] == 'decision' and \
+                    detections[k]['for_while'] == False and \
+                    detections[k + 1]['elbow_top_left'] == False and \
+                    detections[k]['command'] in ["obstacle detected", "no obstacle"]:
+    
+                        falseBranch = []
+                        trueBranch = []
+                        decision_x = detections[k]['coordinates'][0]
+                        decision_y = element['coordinates'][1]
+                        decision_x1 = detections[k]['x1']
+                        decision_x2 = detections[k]['x2']
+    
+                        if detections[k]['reverse_decision'] == True:
+                            reverse = True
+                        else:
+                            reverse = False
+    
+                        decision_command = detections[k]['command']
+                        pseudocode.append(f"        if {decision_command}")
+    
+                        l = k
+                        l += 1
+    
+                        while l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
+    
+                            if detections[l]['type'] == 'arrowhead' and \
+                            (decision_x1 < detections[l]['coordinates'][0] < decision_x2) and \
+                            (detections[l]['coordinates'][1] > decision_y):
+    
+                                break
+    
+                            l += 1
+    
+                        # Find the next non-arrow element
+                        while l < len(detections) and (time.time() - start_time) < max_time:
+    
+                            # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
+                            if detections[l]['type'] == 'arrowhead' and decision_x1 < detections[l]['coordinates'][0] < decision_x2:
+                                break
+    
+                            elif l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
+                                l += 1
+    
+                            elif l < len(detections) and (detections[l]['type'] in ['process', 'data', 'terminator', 'decision']):
+    
+                                command = detections[l]['command']
+                                if detections[l]['x1'] < decision_x:
+                                    if reverse:
+                                        trueBranch.append(command)
+                                    else:
+                                        falseBranch.append(command)
+    
+                                else:
+                                    if reverse:
+                                        falseBranch.append(command)
+                                    else:
+                                        trueBranch.append(command)
+                                l += 1
+    
+                        if trueBranch:
+                            for command in trueBranch:
+                                pseudocode.append(f"           {command}")
+    
+                        else:
+                            pseudocode.append(f"           do nothing")
+    
+    
+                        if falseBranch:
+                            pseudocode.append("       else")
+                            for command in falseBranch:
+                                pseudocode.append(f"           {command}")
+                            pseudocode.append("       endif")
+    
+                        else:
+                            pseudocode.append("       endif")
+    
+    
+                        falseBranch = []
+                        trueBranch = []
+    
+    
+                        k = l  # Skip to after the decision block
+    
+                if decision_command.startswith("repeat"):
+                    pseudocode.append("    endrepeat")
+                else:
+                    pseudocode.append("    endwhile")
+    
+    
+                i = k  # Skip ahead to after the decision block
+    
+    
+            #REPEAT/WHILE LOOP
+            elif i < len(detections) and element['type'] == 'decision' and \
+            element['for_while'] == True and \
+            element['for_while_horizontal'] == False and \
+            detections[i+1]['elbow_top_left'] == False:
+    
+    
                 falseBranch = []
                 
-
-
-                i = j  # Skip to after the decision block
-
-
-        #IF-ELSE CONDITION
-        elif j < len(detections) and element['type'] == 'decision' and \
-        element['for_while'] == False and \
-        element['for_while_horizontal'] == False and \
-        detections[i + 1]['elbow_top_left'] == False and \
-        detections[i]['command'] in ["obstacle detected", "no obstacle"]:
-
-            j = i + 1
-            if element['reverse_decision'] == True:
-                reverse = True
-            else:
-                reverse = False
-
-            falseBranch = []
-            trueBranch = []
-            decision_x = element['coordinates'][0]
-            decision_y = element['coordinates'][1]
-            decision_x1 = element['x1']
-            decision_x2 = element['x2']
-
-            decision_command = element['command']
-            pseudocode.append(f"    if {decision_command}")
-
-            while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-              if detections[j]['type'] == 'arrowhead' and (decision_x1 < detections[j]['coordinates'][0] < decision_x2) and (detections[j]['coordinates'][1] > decision_y):
-                  break
-              j += 1
-
-            # Find the next non-arrow element while finding arrow of > 100 width
-            while j < len(detections) and (time.time() - start_time) < max_time:
-                # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
-                if j < len(detections) and detections[j]['type'] == 'arrowhead' and decision_x1 < detections[j]['coordinates'][0] < decision_x2:
-                    break
-
-                elif j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-                    j += 1
-
-                elif j < len(detections) and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
-                    command = detections[j]['command']
-                    if detections[j]['x1'] < decision_x:
-                        if reverse:
-                            trueBranch.append(command)
+                decision_x = element['coordinates'][0]
+                j = i + 1
+                decision_command = element['command']
+    
+    
+                if not decision_command.startswith("repeat"):
+                    pseudocode.append(f"    while {decision_command}")
+                else:
+                    pseudocode.append(f"    {decision_command}")
+    
+                # Find the next non-arrow element while finding arrow of > 100 width
+                while j < len(detections) and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+    
+                    if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+    
+                        if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
+                          popped_item = detections.pop(j)
+                          falseBranch.append(popped_item)
+                          j -= 1 # Decrement j here
+                        j += 1
+    
+                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
+                        command = detections[j]['command']
+                        if ((detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x)):
+                            popped_item = detections.pop(j)
+                            falseBranch.append(popped_item)
+                            
+                            j -= 1 # Decrement j here
                         else:
-                            falseBranch.append(command)
-
+                            pseudocode.append(f"        {command}")
+                        j += 1
+    
+    
+                if j < len(detections) and detections[j]['elbow_top_left'] == True:
+    
+                    j += 1
+    
+                    if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+    
+                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
+                        command = detections[j]['command']
+                        if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
+                            popped_item = detections.pop(j)
+                            falseBranch.append(popped_item)
+                            j -= 1 # Decrement j here
+                        else:
+                            pseudocode.append(f"        {command}")
+                        j += 1
+    
+                    while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+    
+                    if j < len(detections):
+                        while (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x):
+                            popped_item = detections.pop(j)
+                            falseBranch.append(popped_item)
+                            
+                            j -= 1 # Decrement j here
+                            j += 1
+    
+                        command = detections[j]['command']
+                        pseudocode.append(f"        {command}")
+    
+                        if decision_command.startswith("repeat"):
+                            pseudocode.append("    endrepeat")
+                        else:
+                            pseudocode.append("    endwhile")
+    
                     else:
-                        if reverse:
-                            falseBranch.append(command)
+                        if decision_command.startswith("repeat"):
+                            pseudocode.append("    endrepeat")
                         else:
-                            trueBranch.append(command)
-                    j += 1
+                            pseudocode.append("    endwhile")
+    
+                    detections[j + 1:j + 1] = falseBranch
+    
+    
+                    falseBranch = []
+                    
+    
+                    i = j  # Skip to after the decision block
+    
+    
+                elif j < len(detections) and (detections[j]['elbow_bottom_curved'] == True or detections[j]['elbow_bottom_left'] == True):
+    
+                    j -= 1
+    
+                    while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+    
+                    if j < len(detections):
+                        if decision_command.startswith("repeat"):
+                            pseudocode.append("    endrepeat")
+                        else:
+                            pseudocode.append("    endwhile")
+    
+                    else:
+                        if decision_command.startswith("repeat"):
+                            pseudocode.append("    endrepeat")
+                        else:
+                            pseudocode.append("    endwhile")
+    
+                    detections[j + 1:j + 1] = falseBranch
+    
+                    falseBranch = []
+    
+                    i = j  # Skip to after the decision block
+    
+                else:
+                    if decision_command.startswith("repeat"):
+                        pseudocode.append("    endrepeat")
+                    else:
+                        pseudocode.append("    endwhile")
+    
+                    detections[j + 1:j + 1] = falseBranch
+    
+                    falseBranch = []
+                    
+    
+    
+                    i = j  # Skip to after the decision block
+    
+    
+            #IF-ELSE CONDITION
+            elif i < len(detections) and element['type'] == 'decision' and \
+            element['for_while'] == False and \
+            element['for_while_horizontal'] == False and \
+            detections[i + 1]['elbow_top_left'] == False and \
+            detections[i]['command'] in ["obstacle detected", "no obstacle"]:
+    
+                j = i + 1
+                if element['reverse_decision'] == True:
+                    reverse = True
+                else:
+                    reverse = False
+    
+                falseBranch = []
+                trueBranch = []
+                decision_x = element['coordinates'][0]
+                decision_y = element['coordinates'][1]
+                decision_x1 = element['x1']
+                decision_x2 = element['x2']
+    
+                decision_command = element['command']
+                pseudocode.append(f"    if {decision_command}")
+    
+                while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                  if detections[j]['type'] == 'arrowhead' and (decision_x1 < detections[j]['coordinates'][0] < decision_x2) and (detections[j]['coordinates'][1] > decision_y):
+                      break
+                  j += 1
+    
+                # Find the next non-arrow element while finding arrow of > 100 width
+                while j < len(detections) and (time.time() - start_time) < max_time:
+                    # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
+                    if j < len(detections) and detections[j]['type'] == 'arrowhead' and decision_x1 < detections[j]['coordinates'][0] < decision_x2:
+                        break
+    
+                    elif j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        j += 1
+    
+                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
+                        command = detections[j]['command']
+                        if detections[j]['x1'] < decision_x:
+                            if reverse:
+                                trueBranch.append(command)
+                            else:
+                                falseBranch.append(command)
+    
+                        else:
+                            if reverse:
+                                falseBranch.append(command)
+                            else:
+                                trueBranch.append(command)
+                        j += 1
+    
+                if trueBranch:
+                    for command in trueBranch:
+                        pseudocode.append(f"        {command}")
+    
+                else:
+                    pseudocode.append(f"        do nothing")
+    
+    
+                if falseBranch:
+                    pseudocode.append("    else")
+                    for command in falseBranch:
+                        pseudocode.append(f"        {command}")
+                    pseudocode.append("    endif")
+    
+                else:
+                    pseudocode.append("    endif")
+    
+                
+                falseBranch = []
+                trueBranch = []
+    
+    
+                i = j  # Skip to after the decision block
+    
+            #NONE OF THE ABOVE
+            elif i < len(detections) and element['type'] == 'decision' and \
+            (element['command'].startswith("unknown") or element['command'].startswith("no text")):
+                decision_command = element['command']
+                pseudocode.append(f"    {decision_command}")
 
-            if trueBranch:
-                for command in trueBranch:
-                    pseudocode.append(f"        {command}")
-
-            else:
-                pseudocode.append(f"        do nothing")
-
-
-            if falseBranch:
-                pseudocode.append("    else")
-                for command in falseBranch:
-                    pseudocode.append(f"        {command}")
-                pseudocode.append("    endif")
-
-            else:
-                pseudocode.append("    endif")
-
+            i += 1
             
-            falseBranch = []
-            trueBranch = []
+        except KeyError as e:
+            print(f"Error: Missing key {e} in detection element {detections[i]}")
+            pseudocode.append("stop")  # Append "stop" if there's a key error.
 
+        except IndexError as e:
+            print(f"Error: Index out of range. {e}")
+            pseudocode.append("stop")  # Append "stop" if there's an index error.
 
-            i = j  # Skip to after the decision block
+        except Exception as e:
+            print(f"Unexpected error occurred: {e}")
+            pseudocode.append("stop")  # Append "stop" for any other unexpected errors.
 
-        #NONE OF THE ABOVE
-        elif element['type'] == 'decision' and \
-        (element['command'].startswith("unknown") or element['command'].startswith("no text")):
-            decision_command = element['command']
-            pseudocode.append(f"    {decision_command}")
-
-        i += 1
-
+    
     # END will be added if not detected
     if not end_detected:
         pseudocode.append("stop")
@@ -1425,9 +1439,12 @@ async def upload_image(file: UploadFile = File(...)):
         print_result(sorted_result, resized_image_path)
         
         # Convert to pseudocode
-        pseudocode_result = convert_to_pseudocode(sorted_result)
-        arduino_commands = translate_pseudocode(pseudocode_result)
-
+        if len(sorted_result) >= 4:
+            pseudocode_result = convert_to_pseudocode(sorted_result)
+            arduino_commands = translate_pseudocode(pseudocode_result)
+        else:
+            pseudocode_result = ""
+            arduino_commands = "<stop>"
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
