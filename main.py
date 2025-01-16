@@ -86,8 +86,11 @@ input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 yes_no = ["yes", "no"]
 
 # Google Drive model file ID
-MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"  # Replace this with your actual model file ID
-MODEL_PATH = "static/currentmodel.pt"  # Save model to this path
+#MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"  # Replace this with your actual model file ID
+#MODEL_PATH = "static/currentmodel.pt"  # Save model to this path
+
+MODEL_FILE_ID = "115oFkB-tenIyZU6fEKIZLzOMSGqrJXFO"  # Replace this with your actual model file ID
+MODEL_PATH = "static/best.pt"  # Save model to this path
 
 # Download the model from Google Drive to the 'models' directory
 def download_model():
