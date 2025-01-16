@@ -1286,9 +1286,6 @@ def translate_pseudocode(pseudocode):
         if line.lower().startswith("start") or line == "":
             continue  # Skip 'start' and empty lines
 
-        elif line.lower().startswith("stop"):
-            commands.append("<stop>")
-
         elif line.lower().startswith("repeat"):
             loop_stack.append("repeat")
             match = re.match(r"repeat (\d+) times", line.lower())
