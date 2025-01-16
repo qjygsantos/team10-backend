@@ -312,7 +312,7 @@ def check_arrows(detection_result, arrow_data):
 
                     # Arrow pointing left and right
                     if abs(arrow['height'] - arrowhead['height']) < 40 and \
-                     abs(arrow['width'] - arrowhead['width']) > 40 and \
+                     arrow['width'] > arrow['height'] and \
                       (arrow['y2'] > arrowhead['center_y'] > arrow['y1']) and \
                        (arrow['x1']< arrowhead['center_x'] < arrow['x2']) and \
                         (not any((d['elbow_bottom_left'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) or (d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) for d in detection_result)):
@@ -402,7 +402,7 @@ def arrange_symbol_order(filtered_results):
 
             #check if there are arrowheads with ['head_elbow_top_left'] == True when symbol is 'decision'
 
-            if (filtered_results[i]['type'] == 'decision' and
+            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision' and
                 any(
                     filtered_results[j]['type'] == 'arrowhead' and filtered_results[j]['head_elbow_top_left'] == True
                     for j in range(max(0, i - 3), min(i + 5, len(filtered_results)))
@@ -410,7 +410,7 @@ def arrange_symbol_order(filtered_results):
                 )):
                 filtered_results[i]['for_while'] = True
 
-            if (filtered_results[i]['type'] == 'decision') and i + 4 < n:
+            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision') and i + 4 < n:
                    next_four_symbols = filtered_results[i + 1:i + 5]
                    num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
                    num_elbow_top_left = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left', False))
@@ -423,11 +423,11 @@ def arrange_symbol_order(filtered_results):
 
 
 
-            if (filtered_results[i]['type'] == 'decision' and filtered_results[i]['for_while'] == True and filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == False):
+            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision' and filtered_results[i]['for_while'] == True and filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == False):
                     filtered_results[i], filtered_results[i + 1] = filtered_results[i + 1], filtered_results[i]
 
 
-            if (filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == True):
+            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == True):
 
                     # Find the next arrow element
                     j = i + 1
@@ -443,7 +443,7 @@ def arrange_symbol_order(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
 
             #if-else
-            if filtered_results[i]['type'] == 'decision' and \
+            if i > 0 and i + 1 < len(filtered_results) and filtered_results[i]['type'] == 'decision' and \
                 any(filtered_results[j]['command'] == 'yes' and \
                     filtered_results[j]['x1'] < filtered_results[i]['coordinates'][0]
                     for j in [i + 1, i + 2, i + 3] if j < len(filtered_results)):
