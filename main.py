@@ -1016,7 +1016,7 @@ def convert_to_pseudocode(detections):
 
 
             falseBranch = []
-            falseID = []
+            
             decision_x = element['coordinates'][0]
             j = i + 1
             decision_command = element['command']
@@ -1040,10 +1040,10 @@ def convert_to_pseudocode(detections):
 
                 elif j < n and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
                     command = detections[j]['command']
-                    if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
+                    if ((detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x)):
                         popped_item = detections.pop(j)
                         falseBranch.append(popped_item)
-                        falseID.append(detections[j]['order'])
+                        
                         j -= 1 # Decrement j here
                     else:
                         pseudocode.append(f"        {command}")
@@ -1062,7 +1062,6 @@ def convert_to_pseudocode(detections):
                     if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
                         popped_item = detections.pop(j)
                         falseBranch.append(popped_item)
-                        falseID.append(detections[j]['order'])
                         j -= 1 # Decrement j here
                     else:
                         pseudocode.append(f"        {command}")
@@ -1075,7 +1074,7 @@ def convert_to_pseudocode(detections):
                     while (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x):
                         popped_item = detections.pop(j)
                         falseBranch.append(popped_item)
-                        falseID.append(detections[j]['order'])
+                        
                         j -= 1 # Decrement j here
                         j += 1
 
@@ -1097,7 +1096,7 @@ def convert_to_pseudocode(detections):
 
 
                 falseBranch = []
-                falseID = []
+                
 
                 i = j  # Skip to after the decision block
 
@@ -1124,7 +1123,6 @@ def convert_to_pseudocode(detections):
                 detections[j + 1:j + 1] = falseBranch
 
                 falseBranch = []
-                falseID = []
 
                 i = j  # Skip to after the decision block
 
@@ -1137,7 +1135,7 @@ def convert_to_pseudocode(detections):
                 detections[j + 1:j + 1] = falseBranch
 
                 falseBranch = []
-                falseID = []
+                
 
 
                 i = j  # Skip to after the decision block
