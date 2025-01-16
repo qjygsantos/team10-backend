@@ -402,10 +402,13 @@ def arrange_symbol_order(filtered_results):
 
             #check if there are arrowheads with ['head_elbow_top_left'] == True when symbol is 'decision'
 
-            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision' and
+            if (filtered_results[i]['type'] == 'decision' and
                 any(
-                    filtered_results[j]['type'] == 'arrowhead' and filtered_results[j]['head_elbow_top_left'] == True
-                    for j in range(max(0, i - 3), min(i + 5, len(filtered_results)))
+                    filtered_results[j]['type'] == 'arrowhead' and
+                    filtered_results[j]['head_elbow_top_left'] == True and
+                    (abs(filtered_results[i]['x2'] - filtered_results[j]['x1']) < 55 or
+                    abs(filtered_results[i]['x1'] - filtered_results[j]['x2']) < 55)
+                    for j in range(max(0, i - 3), min(i + 6, len(filtered_results)))
                     if j != i  # Exclude the current decision symbol itself
                 )):
                 filtered_results[i]['for_while'] = True
