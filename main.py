@@ -1059,7 +1059,7 @@ def convert_to_pseudocode(detections):
 
                 elif j < n and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
                     command = detections[j]['command']
-                    if detections[j]( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
+                    if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
                         popped_item = detections.pop(j)
                         falseBranch.append(popped_item)
                         falseID.append(detections[j]['order'])
