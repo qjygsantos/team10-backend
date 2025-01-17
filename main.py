@@ -371,7 +371,7 @@ def check_arrows(detection_result, arrow_data):
 
     return detection_result
 
-def arrange_symbol_order(self, filtered_results):
+def arrange_symbol_order(filtered_results):
     start_time = time.time()
     max_time = 3
     n = len(filtered_results)
