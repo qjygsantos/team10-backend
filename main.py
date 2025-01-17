@@ -371,94 +371,85 @@ def check_arrows(detection_result, arrow_data):
 
     return detection_result
 
-def arrange_symbol_order(filtered_results):
+def arrange_symbol_order(self, filtered_results):
     start_time = time.time()
     max_time = 3
     n = len(filtered_results)
-    for i in range(len(filtered_results) - 1):
 
-        if i < len(filtered_results) - 1:
+    try:
+        for i in range(len(filtered_results) - 1):
+            if i < len(filtered_results) - 1:
+                if (filtered_results[i]['type'] == 'arrow' and 
+                    filtered_results[i - 1]['type'] == 'arrowhead' and 
+                    filtered_results[i + 1]['type'] != 'arrowhead'):
+                    filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
 
-            if filtered_results[i]['type'] == 'arrow' and filtered_results[i - 1]['type'] == 'arrowhead' and \
-                        filtered_results[i + 1]['type'] != 'arrowhead':
-                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
+                if (filtered_results[i]['elbow_bottom_curved'] == True and 
+                    filtered_results[i - 1]['type'] == 'arrow'):
+                    filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
 
-            if filtered_results[i]['elbow_bottom_curved'] == True and filtered_results[i - 1]['type'] == 'arrow':
-                            filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
-
-            #DO-WHILE Implementation
-            if i > 0 and i + 1 < len(filtered_results) and \
-                          filtered_results[i]['type'] == 'arrowhead' and \
-                          filtered_results[i + 1]['type'] in ["process", "data"] and \
-                          filtered_results[i - 1]['type'] == 'arrowhead':
-
+                # DO-WHILE Implementation
+                if (i > 0 and i + 1 < len(filtered_results) and 
+                    filtered_results[i]['type'] == 'arrowhead' and 
+                    filtered_results[i + 1]['type'] in ["process", "data"] and 
+                    filtered_results[i - 1]['type'] == 'arrowhead'):
                     removed_arrowhead = filtered_results.pop(i)
-
                     j = i + 1
-                    while j+1 < len(filtered_results) and (filtered_results[j]['type'] != 'decision' and \
-                    filtered_results[j + 1]['elbow_top_left'] != True):
+                    while (j + 1 < len(filtered_results) and 
+                          filtered_results[j]['type'] != 'decision' and 
+                          filtered_results[j + 1]['elbow_top_left'] != True):
                         j += 1
-
                     new_index = j + 2
                     if new_index < len(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
 
+                # FOR and WHILE LOOP Implementation
+                if (filtered_results[i]['type'] == 'decision' and
+                    any(filtered_results[j]['type'] == 'arrowhead' and
+                        filtered_results[j]['head_elbow_top_left'] == True and
+                        (abs(filtered_results[i]['x2'] - filtered_results[j]['x1']) < 50 or
+                        abs(filtered_results[i]['x1'] - filtered_results[j]['x2']) < 50)
+                        for j in range(max(0, i - 3), min(i + 6, len(filtered_results)))
+                        if j != i)):
+                    filtered_results[i]['for_while'] = True
 
-            #FOR and WHILE LOOP Implementation
-
-            #check if there are arrowheads with ['head_elbow_top_left'] == True when symbol is 'decision'
-
-            if (filtered_results[i]['type'] == 'decision' and
-                any(
-                    filtered_results[j]['type'] == 'arrowhead' and
-                    filtered_results[j]['head_elbow_top_left'] == True and
-                    (abs(filtered_results[i]['x2'] - filtered_results[j]['x1']) < 55 or
-                    abs(filtered_results[i]['x1'] - filtered_results[j]['x2']) < 55)
-                    for j in range(max(0, i - 3), min(i + 6, len(filtered_results)))
-                    if j != i  # Exclude the current decision symbol itself
-                )):
-                filtered_results[i]['for_while'] = True
-
-            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision') and i + 4 < n:
-                   next_four_symbols = filtered_results[i + 1:i + 5]
-                   num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
-                   num_elbow_top_left = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left', False))
-                   num_elbow_top_left_width = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left_width', False))
-                   num_both = num_straight_leftright + num_elbow_top_left + num_elbow_top_left_width
-
-
-                   if num_both >= 2:
+                if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
+                    next_four_symbols = filtered_results[i + 1:i + 5]
+                    num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
+                    num_elbow_top_left = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left', False))
+                    num_elbow_top_left_width = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left_width', False))
+                    num_both = num_straight_leftright + num_elbow_top_left + num_elbow_top_left_width
+                    if num_both >= 2:
                         filtered_results[i]['for_while_horizontal'] = True
 
-
-
-            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision' and filtered_results[i]['for_while'] == True and filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == False):
+                if (filtered_results[i]['type'] == 'decision' and filtered_results[i]['for_while'] == True and
+                    filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == False):
                     filtered_results[i], filtered_results[i + 1] = filtered_results[i + 1], filtered_results[i]
 
-
-            if i > 0 and i + 1 < len(filtered_results) and (filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == True):
-
-                    # Find the next arrow element
+                if (filtered_results[i]['type'] == 'decision' and filtered_results[i + 1]['type'] == 'arrowhead' and
+                    filtered_results[i + 1]['head_elbow_top_left'] == True):
                     j = i + 1
-                    n = len(filtered_results)
-                    while j+1 < n and filtered_results[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
-                          j += 1
-
-                    # Remove the second arrowhead
+                    while (j + 1 < n and filtered_results[j]['elbow_top_left'] != True and
+                          (time.time() - start_time) < max_time):
+                        j += 1
                     removed_arrowhead = filtered_results.pop(i + 1)
                     new_index = j
-
                     if new_index < len(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
 
-            #if-else
-            if i > 0 and i + 1 < len(filtered_results) and filtered_results[i]['type'] == 'decision' and \
-                any(filtered_results[j]['command'] == 'yes' and \
-                    filtered_results[j]['x1'] < filtered_results[i]['coordinates'][0]
-                    for j in [i + 1, i + 2, i + 3] if j < len(filtered_results)):
-                filtered_results[i]['reverse_decision'] = True
+                # IF-ELSE
+                if (filtered_results[i]['type'] == 'decision' and 
+                    any(filtered_results[j]['command'] == 'yes' and 
+                        filtered_results[j]['x1'] < filtered_results[i]['coordinates'][0]
+                        for j in [i + 1, i + 2, i + 3] if j < len(filtered_results))):
+                    filtered_results[i]['reverse_decision'] = True
 
-    return filtered_results    
+    except (IndexError, KeyError, TypeError) as e:
+        # Log the error (if logging is enabled) and return the current results
+        print(f"Error encountered: {e}")
+        return filtered_results
+
+    return filtered_results  
 
 
 def detect_diagram(thresh2, thresh):
