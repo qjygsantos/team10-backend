@@ -253,14 +253,13 @@ def text_matching(text, symbol_type=None):
                 
     
 def check_arrows(detection_result, arrow_data):
-    
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
             for arrowhead in arrow_data:
                 if arrowhead['type'] == 'arrowhead':
 
                     # Arrow pointing down
-                    if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['y2'] > arrowhead['center_y'] > arrow['center_y']) and (arrow['x1'] < arrowhead['center_x'] < arrow['x2']):
+                    if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['height'] > arrow['width']) and (arrow['y2'] > arrowhead['center_y'] > arrow['center_y']) and (arrow['x1'] < arrowhead['center_x'] < arrow['x2']):
 
                         for detection in detection_result:
 
@@ -270,7 +269,7 @@ def check_arrows(detection_result, arrow_data):
                                detection['straight_down'] = True
 
                     # Arrow pointing up
-                    if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['y1'] < arrowhead['center_y'] < arrow['center_y']) and (arrow['x1']< arrowhead['center_x'] < arrow['x2']):
+                    if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['height'] > arrow['width']) and (arrow['y1'] < arrowhead['center_y'] < arrow['center_y']) and (arrow['x1']< arrowhead['center_x'] < arrow['x2']):
 
                         for detection in detection_result:
                             if (detection['type'] == 'arrow' and
