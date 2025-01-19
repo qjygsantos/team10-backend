@@ -121,6 +121,17 @@ def preprocess_image(image):
     thresh2 = image
     
     return thresh2, thresh
+    
+def resize_image(image_path, base_width):
+    img = Image.open(image_path)
+    img = ImageOps.exif_transpose(img)
+    wpercent = (base_width / float(img.size[0]))
+    hsize = int((float(img.size[1]) * float(wpercent)))
+    resized_img = img.resize((base_width, hsize), PIL.Image.Resampling.LANCZOS)
+
+    # Convert the PIL image to a NumPy array
+    resized_img_np = np.array(resized_img)
+    return resized_img_np
 
 def perform_OCR(image_np):
 
@@ -821,7 +832,6 @@ def print_result_with_ocr(result, image_path):
             annotated_image.save(image_path)
             return image_path
 
-
 def convert_to_pseudocode(detections):
     start_time = time.time()
     max_time = 3
@@ -862,13 +872,16 @@ def convert_to_pseudocode(detections):
             element['for_while_horizontal'] == True:
                 j = i + 1
                 decision_command = element['command']
-    
+                decision_x1 = element['x1']
+                decision_x2 = element['x2']
+                decision_y2 = element['y2']
+
                 if not decision_command.startswith("repeat"):
                     pseudocode.append(f"    while {decision_command}")
                 else:
                     pseudocode.append(f"    {decision_command}")
     
-                while j < len(detections) and detections[j]['straight_down'] != True and (time.time() - start_time) < max_time:
+                while j < len(detections) and not (((decision_x1 <= detections[j]['coordinates'][0] <= decision_x2) and (decision_y2 < detections[j]['coordinates'][1])) or detections[j]['straight_down'] == True) and (time.time() - start_time) < max_time:
     
                     if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
@@ -1251,6 +1264,8 @@ def convert_to_pseudocode(detections):
     return "\n".join(pseudocode)
 
 
+
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "move forward": "f",
@@ -1352,16 +1367,6 @@ def validate_pseudocode(pseudocode: str):
 
     return {"status": "success", "error_message": "Pseudocode is valid"}
     
-def resize_image(image_path, base_width):
-    img = Image.open(image_path)
-    img = ImageOps.exif_transpose(img)
-    wpercent = (base_width / float(img.size[0]))
-    hsize = int((float(img.size[1]) * float(wpercent)))
-    resized_img = img.resize((base_width, hsize), PIL.Image.Resampling.LANCZOS)
-
-    # Convert the PIL image to a NumPy array
-    resized_img_np = np.array(resized_img)
-    return resized_img_np
 
 @app.get("/")
 async def index(request: Request):
