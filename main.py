@@ -1233,15 +1233,16 @@ def convert_to_pseudocode(detections):
         except KeyError as e:
             print(f"Error: Missing key {e} in detection element {detections[i]}")
             pseudocode.append("stop")  # Append "stop" if there's a key error.
-
+            break
+            
         except IndexError as e:
             print(f"Error: Index out of range. {e}")
             pseudocode.append("stop")  # Append "stop" if there's an index error.
-
+            break
         except Exception as e:
             print(f"Unexpected error occurred: {e}")
             pseudocode.append("stop")  # Append "stop" for any other unexpected errors.
-
+            break
     
     # END will be added if not detected
     if not end_detected:
