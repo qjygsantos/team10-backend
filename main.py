@@ -1356,16 +1356,262 @@ def translate_pseudocode(pseudocode):
 
 
 def is_valid_flowchart(sorted_result):
-    return {
-        "status": "success",
-        "error_list": "",
-        "dialog_message": "No errors were found! You may click 'Next' to proceed."
-    }
+    total = len(sorted_result)
+    num_terminators = 0
+    num_arrows = 0
+    num_process_data = 0
+    num_decision = 0
+    num_symbols = 0
+    num_connectors = 0
+
+    command_none_count = 0
+    invalid_decision_count = 0
+
+    elbow_arrow_count = 0
+    upward_arrow_count = 0
+
+    terminator_commands = []  # Store commands of terminator symbols
+    errors = []  # To accumulate error messages
+
+    # Analyze sorted_result
+    for detection in sorted_result:
+        label = detection['type']
+        command = detection.get('command', None)
+
+        if label not in ['arrow', 'arrowhead']:
+            num_symbols += 1
+
+            if label in ['process', 'data']:
+                num_process_data += 1
+                if command.startswith("no text") or command.startswith("unknown"):
+                    command_none_count += 1
+
+            elif label == 'connector':
+                num_connectors += 1
+
+            elif label == 'decision':
+                num_decision += 1
+                if command.startswith("no text") or command.startswith("unknown"):
+                    invalid_decision_count += 1
+
+            elif label == 'terminator':
+                num_terminators += 1
+                if command.startswith("no text") or command.startswith("unknown"):
+                    command_none_count += 1
+                else:
+                    terminator_commands.append(command.strip().lower())
+
+        elif label == 'arrow':
+            num_arrows += 1
+            # Check if the arrow is an elbow arrow
+            if any(
+                detection.get(key, False)
+                for key in ['elbow_top_left', 'elbow_top_left_width', 'elbow_bottom_curved', 'elbow_bottom_left']
+            ):
+                elbow_arrow_count += 1
+
+            if any(
+                detection.get(key, False)
+                for key in ['straight_up']
+            ):
+                upward_arrow_count += 1
+
+
+    # Error Conditions
+
+    if total <= 5:
+        errors.append("Flowchart is incomplete.")
+
+    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'stop']):
+        errors.append("Flowchart must contain both the 'start' and 'stop' terminators.")
+
+    if abs(num_arrows - num_symbols) > 10:
+        errors.append("Missing arrows (check downward, left/right arrows).")
+
+    if upward_arrow_count > 5:
+        errors.append("Upward arrows are not allowed.")
+
+    if num_connectors != 0 and num_connectors % 2 != 0:
+        errors.append("Missing connector link.")
+
+    if num_process_data == 0:
+        errors.append("Flowchart must include at least one process or data symbol.")
+
+    if invalid_decision_count > 0:
+        errors.append("Decision symbol/s contain invalid conditions.")
+
+    if num_decision > elbow_arrow_count:
+        errors.append("Missing arrows (check loops or conditionals).")
+
+    if command_none_count >= 2:
+        errors.append("Unrecognized commands in process/data symbols.")
+
+
+    # Minor Issues
+    minor_issues = []
+    if command_none_count == 1:
+        minor_issues.append("Invalid command was found in process / data symbol. Replace it with a correct command syntax.")
+    if 1 <= abs(num_arrows - num_symbols) <= 8:
+        minor_issues.append(f"There are {num_symbols} symbols found in the flowchart but {num_arrows} arrows. Verify if the symbols are connected properly")
+
+
+    # Final Decision
+    if not errors and not minor_issues:
+        return {
+            "status": "success",
+            "error_list": "",
+            "dialog_message": "No errors were found! You may click 'Next' to proceed."
+        }
+    elif not errors and minor_issues:
+        return {
+            "status": "success",
+            "error_list": "\n".join(minor_issues),
+            "dialog_message": "Click next to proceed. Double-check the pseudocode before running the commands on the robot!"
+        }
+    else:
+        return {
+            "status": "failed",
+            "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + "\n".join(errors),
+            "dialog_message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details."
+        }
 
 
 def validate_pseudocode(pseudocode: str):
+    # Valid commands
+    valid_commands = {
+        "turn left",
+        "turn right",
+        "speed = low",
+        "speed = medium",
+        "speed = high",
+        "get distance",
+        "do nothing",
+    }
 
+    pseudocode_lines = pseudocode.strip().split("\n")
+    loop_stack = []
+    conditional_stack = []
+
+    # Error message format
+    def generate_error(line_no, line_text, description):
+        return {
+            "status": "fail",
+            "line_with_error": line_no,
+            "error_message": f"""
+line {line_no}
+    {line_text}
+        ^
+SyntaxError: {description}"""
+        }
+
+    # Check nested structures
+    def check_nested(line_no, current_structure):
+        if loop_stack or conditional_stack:
+            return generate_error(
+                line_no,
+                pseudocode_lines[line_no - 1],
+                f"nested '{current_structure}' is not supported"
+            )
+        return None
+
+    # Command checker
+    def check_line(line, line_no):
+        line = line.strip().lower()  # Case-insensitive
+
+        if line in {"start", "stop"}:
+            return None  # Start and Stop are checked later
+
+        if line.startswith("move forward") or line.startswith("move backward"):
+            try:
+                if line in {"move forward", "move backward"}:
+                    return None  # Default to 1 second
+
+                seconds = int(line.split()[2])
+                if not (1 <= seconds <= 5):
+                    raise ValueError("duration out of range (1-5 seconds)")
+            except (ValueError, IndexError):
+                return generate_error(line_no, line, "malformed 'move forward/backward {1-5} seconds'")
+
+        elif line.startswith("repeat"):
+            try:
+                times = int(line.split()[1])
+                if not (1 <= times <= 5):
+                    raise ValueError("repeat count out of range (1-5 times)")
+                error = check_nested(line_no, "repeat")
+                if error:
+                    return error
+                loop_stack.append(line_no)
+            except (ValueError, IndexError):
+                return generate_error(line_no, line, "malformed 'repeat {1-5} times'")
+
+        elif line == "endrepeat":
+            if not loop_stack:
+                return generate_error(line_no, line, "'endrepeat' without matching 'repeat'")
+            loop_stack.pop()
+
+        elif line.startswith("while"):
+            if line not in {"while no obstacle", "while obstacle detected"}:
+                return generate_error(line_no, line, "unrecognized 'while' condition")
+            error = check_nested(line_no, "while")
+            if error:
+                return error
+            loop_stack.append(line_no)
+
+        elif line == "endwhile":
+            if not loop_stack:
+                return generate_error(line_no, line, "'endwhile' without matching 'while'")
+            loop_stack.pop()
+
+        elif line.startswith("if"):
+            if line not in {"if no obstacle", "if obstacle detected"}:
+                return generate_error(line_no, line, "unrecognized 'if' condition")
+            error = check_nested(line_no, "if")
+            if error:
+                return error
+            conditional_stack.append(line_no)
+
+        elif line == "else":
+            if not conditional_stack:
+                return generate_error(line_no, line, "'else' without matching 'if'")
+
+        elif line == "endif":
+            if not conditional_stack:
+                return generate_error(line_no, line, "'endif' without matching 'if'")
+            conditional_stack.pop()
+
+        elif line in valid_commands:
+            return None
+
+        else:
+            return generate_error(line_no, line, "unrecognized command")
+
+        return None
+
+    # First and last lines must be Start and Stop
+    if pseudocode_lines[0].strip().lower() != "start":
+        return generate_error(1, pseudocode_lines[0], "first line must be 'start'")
+    if pseudocode_lines[-1].strip().lower() != "stop":
+        return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'stop'")
+
+    # Check lines one by one
+    for line_no, line in enumerate(pseudocode_lines, start=1):
+        error = check_line(line, line_no)
+        if error:
+            return error
+
+    # Additional checks
+    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "start" and pseudocode_lines[1].strip().lower() == "stop":
+        return generate_error(1, pseudocode_lines[0], "'start' and 'stop' only, no commands between")
+
+    if loop_stack:
+        return generate_error(loop_stack[-1], pseudocode_lines[loop_stack[-1] - 1], "unclosed 'repeat' or 'while'")
+
+    if conditional_stack:
+        return generate_error(conditional_stack[-1], pseudocode_lines[conditional_stack[-1] - 1], "unclosed 'if'")
+
+    # If no errors
     return {"status": "success", "error_message": "Pseudocode is valid"}
+
     
 
 @app.get("/")
@@ -1393,15 +1639,15 @@ async def upload_image(file: UploadFile = File(...)):
     # Preprocess
     preprocessed_img, preprocessed_ocr = preprocess_image(image)
 
-    # Save the preprocessed image
+    # Detect the preprocessed image
     result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, preprocessed_ocr)
     
-    # Sort
+    # Extra Sorting
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
-    
+
+    # Checking Flowchart
     checking_result = is_valid_flowchart(sorted_result)
     
-    # Checking Flowchart
     if checking_result["status"] == "failed":
              
         # Save the image with detections
@@ -1442,13 +1688,10 @@ async def upload_image(file: UploadFile = File(...)):
         # Save the image with detections
         print_result(sorted_result, resized_image_path)
         
-        # Convert to pseudocode
-        if len(sorted_result) >= 4:
-            pseudocode_result = convert_to_pseudocode(sorted_result)
-            arduino_commands = translate_pseudocode(pseudocode_result)
-        else:
-            pseudocode_result = ""
-            arduino_commands = "<stop>"
+        # Convert to Pseudo and String
+        pseudocode_result = convert_to_pseudocode(sorted_result)
+        arduino_commands = translate_pseudocode(pseudocode_result)
+
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
