@@ -107,8 +107,8 @@ model = YOLO(MODEL_PATH)
 
 def preprocess_image(image):
     #for OCR
-    #grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    #thresh = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
+    grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
     
     #for obj. detection
     #blurred = cv2.GaussianBlur(grey, (3, 3), 0)
@@ -117,7 +117,7 @@ def preprocess_image(image):
     #thresh2 = cv2.adaptiveThreshold(clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
     #thresh2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2BGR)
 
-    thresh = image
+    thresh = thresh
     thresh2 = image
     
     return thresh2, thresh
@@ -200,7 +200,7 @@ def text_matching(text, symbol_type=None):
                 highest_ratio = ratio
                 best_match = predefined
 
-        if best_match == "repeat times" and highest_ratio >= 50:
+        if best_match == "repeat times" and highest_ratio >= 45:
             temp = re.findall(r'\d+', normalized_text)
             if len(temp) == 0: # Check if temp is empty, return 'unknown condition' if it is
               return f"unknown condition ({text})"
@@ -209,23 +209,23 @@ def text_matching(text, symbol_type=None):
 
 
         elif best_match in ["no obstacle", "obstacle detected"]:
-            return best_match if highest_ratio >= 65 else f"unknown condition ({text})"
+            return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
         elif best_match in ['start', 'stop']:
-            return best_match if highest_ratio >= 50 else f"unknown command ({text})"
+            return best_match if highest_ratio >= 45 else f"unknown command ({text})"
 
         elif best_match in ['move forward', 'move backward']:
             best_match = best_match
-            return best_match if highest_ratio >= 60 else f"unknown command ({text})"
+            return best_match if highest_ratio >= 50 else f"unknown command ({text})"
 
         elif best_match in ['turn left', 'turn right']:
             best_match = best_match
-            return best_match if highest_ratio >= 50 else f"unknown command ({text})"
+            return best_match if highest_ratio >= 40 else f"unknown command ({text})"
 
         elif best_match in [
             "move forward seconds",
             "move backward seconds",
-            ] and highest_ratio >= 45:
+            ] and highest_ratio >= 40:
 
             temp = re.findall(r'\d+', normalized_text)
 
@@ -242,7 +242,7 @@ def text_matching(text, symbol_type=None):
         elif best_match in [
             "move forward second",
             "move backward second",
-            ] and highest_ratio >= 45:
+            ] and highest_ratio >= 40:
 
             temp = re.findall(r'\d+', normalized_text)
 
@@ -257,7 +257,7 @@ def text_matching(text, symbol_type=None):
                 return f"unknown command ({text})"
 
         else:
-            if highest_ratio >= 60:
+            if highest_ratio >= 45:
                 return best_match
             else:
                 return f"unknown command ({text})"
