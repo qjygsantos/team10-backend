@@ -77,7 +77,7 @@ predefined_commands = [
     "speed = low", "speed = medium", "speed = high"
 ]
 
-start_end = ["start", "stop"]
+start_end = ["start", "end"]
 
 predefined_conditions = ["repeat times", "no obstacle", "obstacle detected"]
 
@@ -211,7 +211,7 @@ def text_matching(text, symbol_type=None):
         elif best_match in ["no obstacle", "obstacle detected"]:
             return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
 
-        elif best_match in ['start', 'stop']:
+        elif best_match in ['start', 'end']:
             return best_match if highest_ratio >= 45 else f"unknown command ({text})"
 
         elif best_match in ['move forward', 'move backward']:
@@ -547,7 +547,7 @@ def detect_diagram(thresh2, thresh):
         elif class_name == 'arrowhead':
             pos = y2
 
-        elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'stop':
+        elif class_name.lower().replace("rotation", "") == 'terminator' and matched_command == 'end':
             pos = y2 + 10
 
         else:
@@ -856,8 +856,8 @@ def convert_to_pseudocode(detections):
             if i < len(detections) and element['type'] == 'terminator':
                 if element['command'] == 'start':
                         pseudocode.append("start")
-                elif element['command'] == 'stop':
-                        pseudocode.append("stop")
+                elif element['command'] == 'end':
+                        pseudocode.append("end")
                         end_detected = True  # Mark END
     
             # Process symbols
@@ -1245,21 +1245,21 @@ def convert_to_pseudocode(detections):
             
         except KeyError as e:
             print(f"Error: Missing key {e} in detection element {detections[i]}")
-            pseudocode.append("stop")  # Append "stop" if there's a key error.
+            pseudocode.append("end")  # Append "end" if there's a key error.
             break
             
         except IndexError as e:
             print(f"Error: Index out of range. {e}")
-            pseudocode.append("stop")  # Append "stop" if there's an index error.
+            pseudocode.append("end")  # Append "end" if there's an index error.
             break
         except Exception as e:
             print(f"Unexpected error occurred: {e}")
-            pseudocode.append("stop")  # Append "stop" for any other unexpected errors.
+            pseudocode.append("end")  # Append "end" for any other unexpected errors.
             break
     
     # END will be added if not detected
     if not end_detected:
-        pseudocode.append("stop")
+        pseudocode.append("end")
 
     return "\n".join(pseudocode)
 
@@ -1422,8 +1422,8 @@ def is_valid_flowchart(sorted_result):
     if total <= 5:
         errors.append("Flowchart is incomplete.")
 
-    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'stop']):
-        errors.append("Flowchart must contain both the 'start' and 'stop' terminators.")
+    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
+        errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
 
     if abs(num_arrows - num_symbols) > 10:
         errors.append("Missing arrows (check downward, left/right arrows).")
@@ -1518,8 +1518,8 @@ SyntaxError: {description}"""
     def check_line(line, line_no):
         line = line.strip().lower()  # Case-insensitive
 
-        if line in {"start", "stop"}:
-            return None  # Start and Stop are checked later
+        if line in {"start", "end"}:
+            return None  # Start and end are checked later
 
         if line.startswith("move forward") or line.startswith("move backward"):
             try:
@@ -1587,11 +1587,11 @@ SyntaxError: {description}"""
 
         return None
 
-    # First and last lines must be Start and Stop
+    # First and last lines must be Start and end
     if pseudocode_lines[0].strip().lower() != "start":
         return generate_error(1, pseudocode_lines[0], "first line must be 'start'")
-    if pseudocode_lines[-1].strip().lower() != "stop":
-        return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'stop'")
+    if pseudocode_lines[-1].strip().lower() != "end":
+        return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'end'")
 
     # Check lines one by one
     for line_no, line in enumerate(pseudocode_lines, start=1):
@@ -1600,8 +1600,8 @@ SyntaxError: {description}"""
             return error
 
     # Additional checks
-    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "start" and pseudocode_lines[1].strip().lower() == "stop":
-        return generate_error(1, pseudocode_lines[0], "'start' and 'stop' only, no commands between")
+    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "start" and pseudocode_lines[1].strip().lower() == "end":
+        return generate_error(1, pseudocode_lines[0], "'start' and 'end' only, no commands between")
 
     if loop_stack:
         return generate_error(loop_stack[-1], pseudocode_lines[loop_stack[-1] - 1], "unclosed 'repeat' or 'while'")
