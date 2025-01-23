@@ -84,7 +84,7 @@ predefined_conditions = ["repeat times", "no obstacle", "obstacle detected"]
 input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 
 yes_no = ["yes", "no"]
-
+a_b_c = ["a", "b", "c"]
 # Google Drive model file ID
 #MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"  # Replace this with your actual model file ID
 #MODEL_PATH = "static/currentmodel.pt"  # Save model to this path
@@ -164,18 +164,18 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
     return ' '.join(texts_inside_box) if texts_inside_box else "no text detected"
 
     
-def text_matching(text, symbol_type=None):
-    
-    normalized_text = text.strip().lower()
+def normalize_unicode(text):
+    cyrillic_to_latin = {'А': 'A', 'а': 'a', 'В': 'B', 'в': 'b', 'С': 'C', 'с': 'c', 'Д': 'D', 'д': 'd'}
+    return ''.join(cyrillic_to_latin.get(char, char) for char in text)
 
-    if symbol_type == "connector":
-        return normalized_text
+def match_text_with_commands(text, symbol_type=None):
+    normalized_text = normalize_unicode(text.strip().lower())
 
     if normalized_text == "no text detected":
         return normalized_text
 
-
     # Initialize variables to track the best match and highest ratio
+    predefined_list = []
     best_match = None
     highest_ratio = 0
 
@@ -190,78 +190,90 @@ def text_matching(text, symbol_type=None):
         predefined_list = input_output
     elif symbol_type == "arrow":
         predefined_list = yes_no
+    elif symbol_type == "connector":
+        predefined_list = a_b_c
 
 
-    # Iterate through the relevant predefined strings
-    if symbol_type != "connector":
+    # Word-level substring matching
+    for predefined in predefined_list:
+        predefined_words = predefined.split()
+
+        if all(word in normalized_text for word in predefined_words):
+            best_match = predefined
+            highest_ratio = 100  # Perfect match for word-level substring
+            break
+
+    if best_match is None:
+        for predefined in predefined_list:
+            if predefined in normalized_text:
+                best_match = predefined
+                highest_ratio = 100  # Perfect match for substring
+                break
+
+    # If no substring match is found, fall back to fuzzy matching
+    if best_match is None:
+        # Fuzzy matching logic
         for predefined in predefined_list:
             ratio = fuzz.ratio(predefined, normalized_text)
             if ratio > highest_ratio:
                 highest_ratio = ratio
                 best_match = predefined
 
-        if best_match == "repeat times" and highest_ratio >= 45:
-            temp = re.findall(r'\d+', normalized_text)
-            if len(temp) == 0: # Check if temp is empty, return 'unknown condition' if it is
-              return f"unknown condition ({text})"
-            num = ''.join(temp)
-            return f"repeat {num} times" if 0 < int(num) <= 5 else f"unknown condition ({text})"
+    # Handle specific conditions and thresholds
+    if best_match == "repeat times" and highest_ratio >= 40:
+        temp = re.findall(r'\d+', normalized_text)
+        if len(temp) == 0:
+            return f"unknown ({text})"
+        num = ''.join(temp)
+        return f"repeat {num} times" if 0 < int(num) <= 5 else f"unknown ({text})"
 
+    elif best_match in ["no obstacle", "obstacle detected"]:
+        return best_match if highest_ratio >= 45 else f"unknown ({text})"
 
-        elif best_match in ["no obstacle", "obstacle detected"]:
-            return best_match if highest_ratio >= 55 else f"unknown condition ({text})"
+    elif best_match in ['start', 'end']:
+        return best_match if highest_ratio >= 40 else f"unknown ({text})"
 
-        elif best_match in ['start', 'end']:
-            return best_match if highest_ratio >= 45 else f"unknown command ({text})"
+    elif best_match in ['move forward', 'move backward']:
+        return best_match if highest_ratio >= 50 else f"unknown ({text})"
 
-        elif best_match in ['move forward', 'move backward']:
-            best_match = best_match
-            return best_match if highest_ratio >= 50 else f"unknown command ({text})"
+    elif best_match in ['turn left', 'turn right']:
+        return best_match if highest_ratio >= 45 else f"unknown ({text})"
 
-        elif best_match in ['turn left', 'turn right']:
-            best_match = best_match
-            return best_match if highest_ratio >= 40 else f"unknown command ({text})"
-
-        elif best_match in [
-            "move forward seconds",
-            "move backward seconds",
-            ] and highest_ratio >= 40:
-
-            temp = re.findall(r'\d+', normalized_text)
-
-            if len(temp) == 0:
-              return f"unknown condition ({text})"
-
-            num = ''.join(temp)
-
-            if 1 <= int(num) <= 5:
-                return f"{best_match.replace('seconds', '')}{num} seconds"
-            else:
-                return f"unknown command ({text})"
-
-        elif best_match in [
-            "move forward second",
-            "move backward second",
-            ] and highest_ratio >= 40:
-
-            temp = re.findall(r'\d+', normalized_text)
-
-            if len(temp) == 0:
-              return f"unknown condition ({text})"
-
-            num = ''.join(temp)
-
-            if 1 <= int(num) <= 5:
-                return f"{best_match.replace('seconds', '')}{num} second"
-            else:
-                return f"unknown command ({text})"
-
+    elif best_match in [
+        "move forward seconds",
+        "move backward seconds",
+    ] and highest_ratio >= 45:
+        temp = re.findall(r'\d+', normalized_text)
+        if len(temp) == 0:
+            return f"unknown ({text})"
+        num = ''.join(temp)
+        if 1 <= int(num) <= 5:
+            return f"{best_match.replace('seconds', '')}{num} seconds"
         else:
-            if highest_ratio >= 45:
-                return best_match
-            else:
-                return f"unknown command ({text})"
-                
+            return f"unknown ({text})"
+
+    elif best_match in [
+        "move forward second",
+        "move backward second",
+    ] and highest_ratio >= 45:
+        temp = re.findall(r'\d+', normalized_text)
+        if len(temp) == 0:
+            return f"unknown ({text})"
+        num = ''.join(temp)
+        if 1 <= int(num) <= 5:
+            return f"{best_match.replace('seconds', '')}{num} second"
+        else:
+            return f"unknown ({text})"
+
+    elif best_match in a_b_c:
+        return best_match if highest_ratio >= 15 else f"unknown ({text})"
+
+    else:
+        if highest_ratio >= 35:
+            return best_match
+        else:
+            return f"unknown ({text})"
+
     
 def check_arrows(detection_result, arrow_data):
     for arrow in arrow_data:
@@ -809,8 +821,9 @@ def print_result(detection_result, image_path):
             cv2.putText(image, label, (text_x + 5, text_y - bg_height + text_size_label[1] + 5),
                         cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
 
+            # Render the command text below the label
             if (detection['type'] != "connector") and (detection['type'] != "arrow" and detection['command'] != "no text detected"):
-                # Render the command text below the label
+                
                 cv2.putText(image, command_text, (text_x + 5, text_y - bg_height + text_size_label[1] + line_spacing),
                             cv2.FONT_HERSHEY_TRIPLEX, font_scale, (0, 0, 0), 2)
 
@@ -1257,9 +1270,7 @@ def convert_to_pseudocode(detections):
             pseudocode.append("end")  # Append "end" for any other unexpected errors.
             break
     
-    # END will be added if not detected
-    if not end_detected:
-        pseudocode.append("end")
+
 
     return "\n".join(pseudocode)
 
