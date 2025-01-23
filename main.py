@@ -168,7 +168,7 @@ def normalize_unicode(text):
     cyrillic_to_latin = {'А': 'A', 'а': 'a', 'В': 'B', 'в': 'b', 'С': 'C', 'с': 'c', 'Д': 'D', 'д': 'd'}
     return ''.join(cyrillic_to_latin.get(char, char) for char in text)
 
-def match_text_with_commands(text, symbol_type=None):
+def text_matching(text, symbol_type=None):
     normalized_text = normalize_unicode(text.strip().lower())
 
     if normalized_text == "no text detected":
