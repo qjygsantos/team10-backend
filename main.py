@@ -86,8 +86,8 @@ input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 yes_no = ["yes", "no"]
 a_b_c = ["a", "b", "c"]
 # Google Drive model file ID
-#MODEL_FILE_ID = "1EWF3e8suI5SA8jHj0w_TG2Pt81e_Swxx"  # Replace this with your actual model file ID
-#MODEL_PATH = "static/currentmodel.pt"  # Save model to this path
+#MODEL_FILE_ID = "1-laEKQEV2R7Il4GQ15WCHtC-2kYbcK4f"  # Replace this with your actual model file ID
+#MODEL_PATH = "static/best.pt"  # Save model to this path
 
 MODEL_FILE_ID = "115oFkB-tenIyZU6fEKIZLzOMSGqrJXFO"  # Replace this with your actual model file ID
 MODEL_PATH = "static/best.pt"  # Save model to this path
