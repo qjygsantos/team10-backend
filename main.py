@@ -68,15 +68,12 @@ bucket = storage.bucket()
 
 predefined_commands = [
     "move forward",
-    "move forward second",
-    "move backward second",
     "move forward seconds",
     "move backward",
     "move backward seconds",
     "turn left", "turn right",
     "speed = low", "speed = medium", "speed = high"
 ]
-
 start_end = ["start", "end"]
 
 predefined_conditions = ["repeat times", "no obstacle", "obstacle detected"]
@@ -107,8 +104,8 @@ model = YOLO(MODEL_PATH)
 
 def preprocess_image(image):
     #for OCR
-    grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
+    #grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #thresh = cv2.adaptiveThreshold(grey, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
     
     #for obj. detection
     #blurred = cv2.GaussianBlur(grey, (3, 3), 0)
@@ -117,7 +114,7 @@ def preprocess_image(image):
     #thresh2 = cv2.adaptiveThreshold(clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 301, 43)
     #thresh2 = cv2.cvtColor(thresh2, cv2.COLOR_GRAY2BGR)
 
-    thresh = thresh
+    thresh = image
     thresh2 = image
     
     return thresh2, thresh
@@ -196,6 +193,8 @@ def text_matching(text, symbol_type=None):
 
     # Word-level substring matching
     for predefined in predefined_list:
+        if predefined in ['move forward', 'move backward']:
+            continue
         predefined_words = predefined.split()
 
         if all(word in normalized_text for word in predefined_words):
@@ -205,10 +204,12 @@ def text_matching(text, symbol_type=None):
 
     if best_match is None:
         for predefined in predefined_list:
+            if predefined in ['move forward', 'move backward']:
+              continue
             if predefined in normalized_text:
-                best_match = predefined
-                highest_ratio = 100  # Perfect match for substring
-                break
+                  best_match = predefined
+                  highest_ratio = 100  # Perfect match for substring
+                  break
 
     # If no substring match is found, fall back to fuzzy matching
     if best_match is None:
@@ -252,18 +253,6 @@ def text_matching(text, symbol_type=None):
         else:
             return f"unknown ({text})"
 
-    elif best_match in [
-        "move forward second",
-        "move backward second",
-    ] and highest_ratio >= 45:
-        temp = re.findall(r'\d+', normalized_text)
-        if len(temp) == 0:
-            return f"unknown ({text})"
-        num = ''.join(temp)
-        if 1 <= int(num) <= 5:
-            return f"{best_match.replace('seconds', '')}{num} second"
-        else:
-            return f"unknown ({text})"
 
     elif best_match in a_b_c:
         return best_match if highest_ratio >= 15 else f"unknown ({text})"
