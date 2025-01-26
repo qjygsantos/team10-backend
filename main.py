@@ -198,7 +198,7 @@ def text_matching(text, symbol_type=None):
 
     # Word-level substring matching
     for predefined in predefined_list:
-        if predefined in ['move forward', 'move backward', 'a', 'b', 'c']::
+        if predefined in ['move forward', 'move backward', 'a', 'b', 'c']:
             continue
         predefined_words = predefined.split()
 
@@ -209,7 +209,7 @@ def text_matching(text, symbol_type=None):
 
     if best_match is None:
         for predefined in predefined_list:
-            if predefined in ['move forward', 'move backward', 'a', 'b', 'c']::
+            if predefined in ['move forward', 'move backward', 'a', 'b', 'c']:
               continue
             if predefined in normalized_text:
                   best_match = predefined
