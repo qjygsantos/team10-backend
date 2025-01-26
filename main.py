@@ -892,6 +892,7 @@ def convert_to_pseudocode(detections):
             #HORIZONTAL REPEAT/WHILE LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
             element['for_while_horizontal'] == True:
+                commands = []
                 j = i + 1
                 decision_command = element['command']
                 decision_x1 = element['x1']
@@ -902,23 +903,31 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    while {decision_command}")
                 else:
                     pseudocode.append(f"    {decision_command}")
-    
+
                 while j < len(detections) and not (((decision_x1 <= detections[j]['coordinates'][0] <= decision_x2) and (decision_y2 < detections[j]['coordinates'][1])) or detections[j]['straight_down'] == True) and (time.time() - start_time) < max_time:
-    
+
                     if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        commands.append(detections[j])
                         j += 1
-    
+
                     elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator']):
                         command = detections[j]['command']
-                        pseudocode.append(f"        {command}")
+                        commands.append(detections[j])
                         j += 1
-    
+
+                commands.sort(key=lambda x: x['x1'])
+
+                for command in commands:
+                    if command['type'] in ['process', 'data', 'terminator']:
+                        pseudocode.append(f"        {command['command']}")
+
                 if decision_command.startswith("repeat"):
                     pseudocode.append("    endrepeat")
                 else:
                     pseudocode.append("    endwhile")
-    
+
                 i = j
+
     
     
             # DO WHILE LOOP / DO REPEAT LOOP
