@@ -193,7 +193,7 @@ def text_matching(text, symbol_type=None):
     elif symbol_type == "arrow":
         predefined_list = yes_no
     elif symbol_type == "connector":
-        predefined_list = a_b_c
+        predefined_list = a_b_c + start_end
 
 
     # Word-level substring matching
@@ -238,7 +238,7 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 45 else f"unknown ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 40 else f"unknown ({text})"
+        return best_match if highest_ratio >= 55 else f"unknown ({text})"
 
     elif best_match in ['move forward', 'move backward']:
         temp = re.findall(r'\d+', normalized_text)
@@ -253,7 +253,7 @@ def text_matching(text, symbol_type=None):
                 return f"unknown ({text})"
 
     elif best_match in ['turn left', 'turn right']:
-        return best_match if highest_ratio >= 45 else f"unknown ({text})"
+        return best_match if highest_ratio >= 50 else f"unknown ({text})"
 
     elif best_match in [
         "move forward seconds",
@@ -269,7 +269,7 @@ def text_matching(text, symbol_type=None):
             return f"unknown ({text})"
 
     elif best_match in a_b_c:
-        return best_match if highest_ratio >= 15 else f"unknown ({text})"
+        return best_match if highest_ratio >= 30 else f"unknown ({text})"
 
     else:
         if highest_ratio >= 35:
@@ -568,6 +568,8 @@ def detect_diagram(thresh2, thresh):
         else:
             pos = y2
 
+        if class_name.lower().replace("rotation", "") == 'connector' and matched_command in ['start', 'end']:
+            class_name = 'terminator'
             
         if class_name.lower().replace("rotation", "") == 'terminator' and matched_command in ['a', 'b', 'c']:
             class_name = 'connector'
