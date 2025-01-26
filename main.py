@@ -82,11 +82,16 @@ input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 
 yes_no = ["yes", "no"]
 a_b_c = ["a", "b", "c"]
+
+
 # Google Drive model file ID
-MODEL_FILE_ID = "1-laEKQEV2R7Il4GQ15WCHtC-2kYbcK4f"  # Replace this with your actual model file ID
+#MODEL_FILE_ID = "1-laEKQEV2R7Il4GQ15WCHtC-2kYbcK4f"  
+#MODEL_PATH = "static/best.pt"  # Save model to this path
+
+MODEL_FILE_ID = "11CDqGVs19sf4oriLXZ6jxfGnEqe7q7DJ"  
 MODEL_PATH = "static/best.pt"  # Save model to this path
 
-#MODEL_FILE_ID = "115oFkB-tenIyZU6fEKIZLzOMSGqrJXFO"  # Replace this with your actual model file ID
+#MODEL_FILE_ID = "115oFkB-tenIyZU6fEKIZLzOMSGqrJXFO" 
 #MODEL_PATH = "static/best.pt"  # Save model to this path
 
 # Download the model from Google Drive to the 'models' directory
@@ -180,7 +185,7 @@ def text_matching(text, symbol_type=None):
     if symbol_type == "process":
         predefined_list = predefined_commands
     elif symbol_type == "terminator":
-        predefined_list = start_end
+        predefined_list = start_end + a_b_c
     elif symbol_type == "decision":
         predefined_list = predefined_conditions
     elif symbol_type == "data":
@@ -223,9 +228,10 @@ def text_matching(text, symbol_type=None):
     # Handle specific conditions and thresholds
     if best_match == "repeat times" and highest_ratio >= 40:
         temp = re.findall(r'\d+', normalized_text)
-        if len(temp) == 0:
+        if len(temp) == 0:  # No numbers detected
             return f"unknown ({text})"
         num = ''.join(temp)
+        # Add logic for "repeat {1-5}" directly
         return f"repeat {num} times" if 0 < int(num) <= 5 else f"unknown ({text})"
 
     elif best_match in ["no obstacle", "obstacle detected"]:
@@ -235,7 +241,16 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 40 else f"unknown ({text})"
 
     elif best_match in ['move forward', 'move backward']:
-        return best_match if highest_ratio >= 50 else f"unknown ({text})"
+        temp = re.findall(r'\d+', normalized_text)
+        if len(temp) == 0:  # No numbers detected
+            return best_match if highest_ratio >= 50 else f"unknown ({text})"
+        else:
+            num = ''.join(temp)
+            # Add logic for "move forward/backward {1-5} seconds" directly
+            if 1 <= int(num) <= 5:
+                return f"{best_match} {num} seconds"
+            else:
+                return f"unknown ({text})"
 
     elif best_match in ['turn left', 'turn right']:
         return best_match if highest_ratio >= 45 else f"unknown ({text})"
@@ -252,7 +267,6 @@ def text_matching(text, symbol_type=None):
             return f"{best_match.replace('seconds', '')}{num} seconds"
         else:
             return f"unknown ({text})"
-
 
     elif best_match in a_b_c:
         return best_match if highest_ratio >= 15 else f"unknown ({text})"
@@ -554,6 +568,10 @@ def detect_diagram(thresh2, thresh):
         else:
             pos = y2
 
+            
+        if class_name.lower().replace("rotation", "") == 'terminator' and matched_command in ['a', 'b', 'c']:
+            class_name = 'connector'
+                
         detection_with_ocr = {
             'type': class_name.lower().replace("rotation", ""),
             'coordinates': (x, y),
