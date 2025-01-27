@@ -238,7 +238,7 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 45 else f"unknown ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 55 else f"unknown ({text})"
+        return best_match if highest_ratio >= 40 else f"unknown ({text})"
 
     elif best_match in ['move forward', 'move backward']:
         temp = re.findall(r'\d+', normalized_text)
@@ -253,7 +253,7 @@ def text_matching(text, symbol_type=None):
                 return f"unknown ({text})"
 
     elif best_match in ['turn left', 'turn right']:
-        return best_match if highest_ratio >= 50 else f"unknown ({text})"
+        return best_match if highest_ratio >= 43 else f"unknown ({text})"
 
     elif best_match in [
         "move forward seconds",
@@ -269,7 +269,7 @@ def text_matching(text, symbol_type=None):
             return f"unknown ({text})"
 
     elif best_match in a_b_c:
-        return best_match if highest_ratio >= 30 else f"unknown ({text})"
+        return best_match if highest_ratio >= 25 else f"unknown ({text})"
 
     else:
         if highest_ratio >= 35:
