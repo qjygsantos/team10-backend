@@ -177,7 +177,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
         symbol_height = ymax - ymin
 
         # 
-        size_threshold = 1.5  
+        size_threshold = 1.35  
 
         # Check if center of text inside the symbol bounding box
         center_inside = xmin <= center_x <= xmax and ymin <= center_y <= ymax
