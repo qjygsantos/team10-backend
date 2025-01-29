@@ -81,7 +81,7 @@ predefined_conditions = ["repeat times", "no obstacle", "obstacle detected"]
 input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 
 yes_no = ["yes", "no"]
-a_b_c = ["a", "b", "c"]
+a_b_c = ["a", "b"]
 
 
 # Google Drive model file ID
@@ -137,30 +137,56 @@ def resize_image(image_path, base_width):
 
 def perform_OCR(image_np):
 
-        client = vision.ImageAnnotatorClient()
-    
-        _, encoded_image = cv2.imencode('.jpg', image_np)  # Encode as JPEG
-        image_content = encoded_image.tobytes() # Convert the NumPy array to bytes
-        image = vision.Image(content=image_content)  
-        response = client.document_text_detection(image=image)
-        texts = response.text_annotations
-        return texts
+    client = vision.ImageAnnotatorClient()
+
+    _, encoded_image = cv2.imencode('.jpg', image_np)  # Encode as JPEG
+    image_content = encoded_image.tobytes()  # Convert NumPy array to bytes
+    image = vision.Image(content=image_content)
+
+    # Specify language hint
+    image_context = vision.ImageContext(language_hints=[language_hint])
+
+    response = client.document_text_detection(image=image, image_context=image_context)
+    texts = response.text_annotations
+
+    return texts
 
 def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
     
     texts_inside_box = []
 
     for text_annotation in ocr_data:
-        
         vertices = text_annotation.bounding_poly.vertices
-        # Coordinates of the OCR detected 
+
+        # Get OCR bounding box coordinates
         x_min = min(vertex.x for vertex in vertices)
         y_min = min(vertex.y for vertex in vertices)
         x_max = max(vertex.x for vertex in vertices)
         y_max = max(vertex.y for vertex in vertices)
 
-        # Check if text's bounding box is within the object detection box
-        if (x_min >= xmin and y_min >= ymin and x_max <= xmax and y_max <= ymax):
+        # Compute center of OCR detected text
+        center_x = (x_min + x_max) // 2
+        center_y = (y_min + y_max) // 2
+
+        # Compute width and height of OCR bounding box
+        text_width = x_max - x_min
+        text_height = y_max - y_min
+
+        # Compute width and height of symbol bounding box
+        symbol_width = xmax - xmin
+        symbol_height = ymax - ymin
+
+        # 
+        size_threshold = 1.5  
+
+        # Check if center of text inside the symbol bounding box
+        center_inside = xmin <= center_x <= xmax and ymin <= center_y <= ymax
+
+        # Check if text size is not too large)
+        size_ok = text_width <= size_threshold * symbol_width and text_height <= size_threshold * symbol_height
+
+        # Add text only if both conditions met
+        if center_inside and size_ok:
             texts_inside_box.append(text_annotation.description)
 
     return ' '.join(texts_inside_box) if texts_inside_box else "no text detected"
