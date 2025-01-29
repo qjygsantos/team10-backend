@@ -135,7 +135,7 @@ def resize_image(image_path, base_width):
     resized_img_np = np.array(resized_img)
     return resized_img_np
 
-def perform_OCR(image_np):
+def perform_OCR(image_np, language_hint="en-t-i0-handwrit"):
 
     client = vision.ImageAnnotatorClient()
 
