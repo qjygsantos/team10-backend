@@ -1323,13 +1323,13 @@ def convert_to_pseudocode(detections):
 
 def translate_pseudocode(pseudocode):
     command_mapping = {
-        "move forward": "f",
-        "move backward": "b",
-        "turn left": "l",
-        "turn right": "r",
-        "speed = low": "sl",
-        "speed = medium": "sm",
-        "speed = high": "sh",
+        "move forward": "F",
+        "move backward": "B",
+        "turn left": "L",
+        "turn right": "R",
+        "speed = low": "S",
+        "speed = medium": "M",
+        "speed = high": "H",
         "get distance": "gd"
     }
 
@@ -1340,16 +1340,16 @@ def translate_pseudocode(pseudocode):
         line = line.strip().lower()
         match = re.match(r"move (forward|backward)(?: (\d+) seconds?)?", line)
         if match:
-            direction = "f" if match.group(1) == "forward" else "b"
+            direction = "F" if match.group(1) == "forward" else "B"
             duration = match.group(2) if match.group(2) else "1"  # Default to 1 second
-            return f"<{direction},{duration}>"
+            return f"<{direction}>"
         return None
 
     def parse_condition(line):
         if "if no obstacle" in line.lower():
-            return "<if,no>"
+            return "<if,1>"
         elif "if obstacle detected" in line.lower():
-            return "<if,o>"
+            return "<if,30>"
         return None
 
     for line in pseudocode.split("\n"):
@@ -1362,20 +1362,20 @@ def translate_pseudocode(pseudocode):
             loop_stack.append("repeat")
             match = re.match(r"repeat (\d+) times", line.lower())
             loop_count = match.group(1) if match else "1"
-            commands.append(f"<rpt,{loop_count}>")
+            commands.append(f"<fr,{loop_count}>")
 
         elif line.lower().startswith("while no obstacle"):
             loop_stack.append("while")
-            commands.append("<w,no>")
+            commands.append("<w,obs>")
 
         elif line.lower().startswith("while obstacle detected"):
             loop_stack.append("while")
-            commands.append("<w,o>")
+            commands.append("<w,obs>")
 
         elif line.lower().startswith("endrepeat"):
             if loop_stack and loop_stack[-1] == "repeat":
                 loop_stack.pop()
-                commands.append("<endr>")
+                commands.append("<endfr>")
 
         elif line.lower().startswith("endwhile"):
             if loop_stack and loop_stack[-1] == "while":
@@ -1390,7 +1390,7 @@ def translate_pseudocode(pseudocode):
 
         elif line.lower().startswith("else"):
             if loop_stack and loop_stack[-1] == "if":
-                commands.append("<else>")
+                commands.append("<M>")
 
         elif line.lower().startswith("endif"):
             if loop_stack and loop_stack[-1] == "if":
