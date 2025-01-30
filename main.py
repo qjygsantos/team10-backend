@@ -252,7 +252,7 @@ def text_matching(text, symbol_type=None):
                 best_match = predefined
 
     # Handle specific conditions and thresholds
-    if best_match == "repeat times" and highest_ratio >= 40:
+    if best_match == "repeat times" and highest_ratio >= 35:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
             return f"unknown ({text})"
@@ -261,15 +261,15 @@ def text_matching(text, symbol_type=None):
         return f"repeat {num} times" if 0 < int(num) <= 5 else f"unknown ({text})"
 
     elif best_match in ["no obstacle", "obstacle detected"]:
-        return best_match if highest_ratio >= 45 else f"unknown ({text})"
+        return best_match if highest_ratio >= 35 else f"unknown ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 40 else f"unknown ({text})"
+        return best_match if highest_ratio >= 35 else f"unknown ({text})"
 
     elif best_match in ['move forward', 'move backward']:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
-            return best_match if highest_ratio >= 50 else f"unknown ({text})"
+            return best_match if highest_ratio >= 35 else f"unknown ({text})"
         else:
             num = ''.join(temp)
             # Add logic for "move forward/backward {1-5} seconds" directly
@@ -279,12 +279,12 @@ def text_matching(text, symbol_type=None):
                 return f"unknown ({text})"
 
     elif best_match in ['turn left', 'turn right']:
-        return best_match if highest_ratio >= 43 else f"unknown ({text})"
+        return best_match if highest_ratio >= 35 else f"unknown ({text})"
 
     elif best_match in [
         "move forward seconds",
         "move backward seconds",
-    ] and highest_ratio >= 45:
+    ] and highest_ratio >= 35:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:
             return f"unknown ({text})"
@@ -1477,28 +1477,25 @@ def is_valid_flowchart(sorted_result):
     if total <= 5:
         errors.append("Flowchart is incomplete.")
 
-    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
+    if num_terminators < 2:
         errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
 
-    if abs(num_arrows - num_symbols) > 10:
+    if abs(num_arrows - num_symbols) > 15:
         errors.append("Missing arrows (check downward, left/right arrows).")
 
-    if upward_arrow_count > 5:
+    if upward_arrow_count > 10:
         errors.append("Upward arrows are not allowed.")
-
-    if num_connectors != 0 and num_connectors % 2 != 0:
-        errors.append("Missing connector link.")
 
     if num_process_data == 0:
         errors.append("Flowchart must include at least one process or data symbol.")
 
-    if invalid_decision_count > 0:
+    if invalid_decision_count > 3:
         errors.append("Decision symbol/s contain invalid conditions.")
 
     if num_decision > elbow_arrow_count:
         errors.append("Missing arrows (check loops or conditionals).")
 
-    if command_none_count >= 2:
+    if command_none_count >= 4:
         errors.append("Unrecognized commands in process/data symbols.")
 
 
