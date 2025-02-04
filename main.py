@@ -1326,8 +1326,6 @@ def convert_to_pseudocode(detections):
 
 
 
-
-
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "move forward": "F",
@@ -1348,8 +1346,8 @@ def translate_pseudocode(pseudocode):
         match = re.match(r"move (forward|backward)(?: (\d+) second(?:s)?)?", line)
         if match:
             direction = "F" if match.group(1) == "forward" else "B"
-            duration = match.group(2) if match.group(2) else "1"  # Default to 1 second
-            return f"<{direction},{duration}>"
+            duration = match.group(2)
+            return f"<{direction}>" if not duration or duration == "1" else f"<{direction},{duration}>"
         return None
 
     def parse_condition(line):
