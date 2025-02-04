@@ -76,7 +76,7 @@ predefined_commands = [
 ]
 start_end = ["start", "end"]
 
-predefined_conditions = ["repeat times", "no obstacle", "obstacle detected"]
+predefined_conditions = ["repeat times", "no obstacle detected", "obstacle detected"]
 
 input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
 
@@ -177,7 +177,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
         symbol_height = ymax - ymin
 
         # 
-        size_threshold = 1.35  
+        size_threshold = 1.6
 
         # Check if center of text inside the symbol bounding box
         center_inside = xmin <= center_x <= xmax and ymin <= center_y <= ymax
@@ -235,7 +235,7 @@ def text_matching(text, symbol_type=None):
 
     if best_match is None:
         for predefined in predefined_list:
-            if predefined in ['move forward', 'move backward', 'a', 'b', 'c']:
+            if predefined in ['move forward','obstacle detected' 'move backward', 'a', 'b', 'c']:
               continue
             if predefined in normalized_text:
                   best_match = predefined
@@ -256,11 +256,15 @@ def text_matching(text, symbol_type=None):
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
             return f"unknown ({text})"
-        num = ''.join(temp)
+        else:
+            num = ''.join(temp)
+            if 0 < int(num) <= 5:
+                return f"repeat {num} time" if int(num) == 1 else f"repeat {num} times"
         # Add logic for "repeat {1-5}" directly
-        return f"repeat {num} times" if 0 < int(num) <= 5 else f"unknown ({text})"
+            else:
+                return f"unknown ({text})"
 
-    elif best_match in ["no obstacle", "obstacle detected"]:
+    elif best_match in ["no obstacle detected", "obstacle detected"]:
         return best_match if highest_ratio >= 45 else f"unknown ({text})"
 
     elif best_match in ['start', 'end']:
@@ -274,12 +278,12 @@ def text_matching(text, symbol_type=None):
             num = ''.join(temp)
             # Add logic for "move forward/backward {1-5} seconds" directly
             if 1 <= int(num) <= 5:
-                return f"{best_match} {num} seconds"
+                return f"{best_match} {num} second" if int(num) == 1 else f"{best_match} {num} seconds"
             else:
                 return f"unknown ({text})"
 
     elif best_match in ['turn left', 'turn right']:
-        return best_match if highest_ratio >= 43 else f"unknown ({text})"
+        return best_match if highest_ratio >= 45 else f"unknown ({text})"
 
     elif best_match in [
         "move forward seconds",
@@ -290,12 +294,12 @@ def text_matching(text, symbol_type=None):
             return f"unknown ({text})"
         num = ''.join(temp)
         if 1 <= int(num) <= 5:
-            return f"{best_match.replace('seconds', '')}{num} seconds"
+            return f"{best_match.replace('seconds', '')}{num} second" if int(num) == 1 else f"{best_match.replace('seconds', '')}{num} seconds"
         else:
             return f"unknown ({text})"
 
     elif best_match in a_b_c:
-        return best_match if highest_ratio >= 25 else f"unknown ({text})"
+        return best_match if highest_ratio >= 15 else f"unknown ({text})"
 
     else:
         if highest_ratio >= 35:
@@ -880,6 +884,7 @@ def print_result_with_ocr(result, image_path):
             annotated_image.save(image_path)
             return image_path
 
+
 def convert_to_pseudocode(detections):
     start_time = time.time()
     max_time = 3
@@ -907,13 +912,13 @@ def convert_to_pseudocode(detections):
                 elif element['command'] == 'end':
                         pseudocode.append("end")
                         end_detected = True  # Mark END
-    
+
             # Process symbols
             elif i < len(detections) and element['type'] in ["process", "data"]:
                 command = element['command']
-    
+
                 pseudocode.append(f"    {command}")
-    
+
             # Decision symbols (nested decision not yet implemented)
             #HORIZONTAL REPEAT/WHILE LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
@@ -954,184 +959,183 @@ def convert_to_pseudocode(detections):
 
                 i = j
 
-    
-    
+
             # DO WHILE LOOP / DO REPEAT LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
             element['for_while_horizontal'] == False and \
             detections[i + 1]['elbow_top_left'] == True:
-    
+
                 do_while_y_coord = detections[i]['coordinates'][1]
-    
+
                 decision_command = detections[i]['command']
-    
+
                 if decision_command.startswith("repeat"):
                     pseudocode.append(f"    {decision_command}") #now append the decision symbol command
                 else:
                     pseudocode.append(f"    while {decision_command}") #check if repeat or while loop
-    
+
                 # go upwards til it finds the end of loop body
                 k = i - 1
                 while k < len(detections) and \
                 detections[k]['coordinates'][1] - detections[k]['height'] // 2 >= \
                 detections[i + 1]['coordinates'][1] - detections[i + 1]['height'] // 2:
-    
+
                     k -= 1
-    
+
                 if detections[k]['type'] not in ["arrow", "arrowhead"]:
-    
+
                     pseudocode.append(f"        {detections[k]['command']}") #append the first item of loop body
-    
+
                 #now go downwards to get the other items til it goes back to decision symbol
                 while k < len(detections) and detections[k]['type'] != 'decision' and detections[k]['coordinates'][1] != do_while_y_coord:
-    
+
                     k += 1
-    
+
                     if detections[k]['type'] in ['process', 'data', 'terminator']:
-    
+
                         pseudocode.append(f"        {detections[k]['command']}")
-    
+
                     if k < len(detections) and detections[k]['type'] == 'decision' and \
                     detections[k]['for_while'] == False and \
                     detections[k + 1]['elbow_top_left'] == False and \
-                    detections[k]['command'] in ["obstacle detected", "no obstacle"]:
-    
+                    detections[k]['command'] in ["obstacle detected", "no obstacle detected"]:
+
                         falseBranch = []
                         trueBranch = []
                         decision_x = detections[k]['coordinates'][0]
                         decision_y = element['coordinates'][1]
                         decision_x1 = detections[k]['x1']
                         decision_x2 = detections[k]['x2']
-    
+
                         if detections[k]['reverse_decision'] == True:
                             reverse = True
                         else:
                             reverse = False
-    
+
                         decision_command = detections[k]['command']
                         pseudocode.append(f"        if {decision_command}")
-    
+
                         l = k
                         l += 1
-    
+
                         while l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
-    
+
                             if detections[l]['type'] == 'arrowhead' and \
                             (decision_x1 < detections[l]['coordinates'][0] < decision_x2) and \
                             (detections[l]['coordinates'][1] > decision_y):
-    
+
                                 break
-    
+
                             l += 1
-    
+
                         # Find the next non-arrow element
                         while l < len(detections) and (time.time() - start_time) < max_time:
-    
+
                             # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
                             if detections[l]['type'] == 'arrowhead' and decision_x1 < detections[l]['coordinates'][0] < decision_x2:
                                 break
-    
+
                             elif l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
                                 l += 1
-    
+
                             elif l < len(detections) and (detections[l]['type'] in ['process', 'data', 'terminator', 'decision']):
-    
+
                                 command = detections[l]['command']
                                 if detections[l]['x1'] < decision_x:
                                     if reverse:
                                         trueBranch.append(command)
                                     else:
                                         falseBranch.append(command)
-    
+
                                 else:
                                     if reverse:
                                         falseBranch.append(command)
                                     else:
                                         trueBranch.append(command)
                                 l += 1
-    
+
                         if trueBranch:
                             for command in trueBranch:
                                 pseudocode.append(f"           {command}")
-    
+
                         else:
                             pseudocode.append(f"           do nothing")
-    
-    
+
+
                         if falseBranch:
                             pseudocode.append("       else")
                             for command in falseBranch:
                                 pseudocode.append(f"           {command}")
                             pseudocode.append("       endif")
-    
+
                         else:
                             pseudocode.append("       endif")
-    
-    
+
+
                         falseBranch = []
                         trueBranch = []
-    
-    
+
+
                         k = l  # Skip to after the decision block
-    
+
                 if decision_command.startswith("repeat"):
                     pseudocode.append("    endrepeat")
                 else:
                     pseudocode.append("    endwhile")
-    
-    
+
+
                 i = k  # Skip ahead to after the decision block
-    
-    
+
+
             #REPEAT/WHILE LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
             element['for_while'] == True and \
             element['for_while_horizontal'] == False and \
             detections[i+1]['elbow_top_left'] == False:
-    
-    
+
+
                 falseBranch = []
-                
+
                 decision_x = element['coordinates'][0]
                 j = i + 1
                 decision_command = element['command']
-    
-    
+
+
                 if not decision_command.startswith("repeat"):
                     pseudocode.append(f"    while {decision_command}")
                 else:
                     pseudocode.append(f"    {decision_command}")
-    
+
                 # Find the next non-arrow element while finding arrow of > 100 width
                 while j < len(detections) and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
-    
+
                     if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
-    
+
                         if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
                           popped_item = detections.pop(j)
                           falseBranch.append(popped_item)
                           j -= 1 # Decrement j here
                         j += 1
-    
+
                     elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
                         command = detections[j]['command']
                         if ((detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x)):
                             popped_item = detections.pop(j)
                             falseBranch.append(popped_item)
-                            
+
                             j -= 1 # Decrement j here
                         else:
                             pseudocode.append(f"        {command}")
                         j += 1
-    
-    
+
+
                 if j < len(detections) and detections[j]['elbow_top_left'] == True:
-    
+
                     j += 1
-    
+
                     if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
-    
+
                     elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
                         command = detections[j]['command']
                         if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
@@ -1141,118 +1145,118 @@ def convert_to_pseudocode(detections):
                         else:
                             pseudocode.append(f"        {command}")
                         j += 1
-    
+
                     while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
-    
+
                     if j < len(detections):
                         while (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x):
                             popped_item = detections.pop(j)
                             falseBranch.append(popped_item)
-                            
+
                             j -= 1 # Decrement j here
                             j += 1
-    
+
                         command = detections[j]['command']
                         pseudocode.append(f"        {command}")
-    
+
                         if decision_command.startswith("repeat"):
                             pseudocode.append("    endrepeat")
                         else:
                             pseudocode.append("    endwhile")
-    
+
                     else:
                         if decision_command.startswith("repeat"):
                             pseudocode.append("    endrepeat")
                         else:
                             pseudocode.append("    endwhile")
-    
+
                     detections[j + 1:j + 1] = falseBranch
-    
-    
+
+
                     falseBranch = []
-                    
-    
+
+
                     i = j  # Skip to after the decision block
-    
-    
+
+
                 elif j < len(detections) and (detections[j]['elbow_bottom_curved'] == True or detections[j]['elbow_bottom_left'] == True):
-    
+
                     j -= 1
-    
+
                     while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
-    
+
                     if j < len(detections):
                         if decision_command.startswith("repeat"):
                             pseudocode.append("    endrepeat")
                         else:
                             pseudocode.append("    endwhile")
-    
+
                     else:
                         if decision_command.startswith("repeat"):
                             pseudocode.append("    endrepeat")
                         else:
                             pseudocode.append("    endwhile")
-    
+
                     detections[j + 1:j + 1] = falseBranch
-    
+
                     falseBranch = []
-    
+
                     i = j  # Skip to after the decision block
-    
+
                 else:
                     if decision_command.startswith("repeat"):
                         pseudocode.append("    endrepeat")
                     else:
                         pseudocode.append("    endwhile")
-    
+
                     detections[j + 1:j + 1] = falseBranch
-    
+
                     falseBranch = []
-                    
-    
-    
+
+
+
                     i = j  # Skip to after the decision block
-    
-    
+
+
             #IF-ELSE CONDITION
             elif i < len(detections) and element['type'] == 'decision' and \
             element['for_while'] == False and \
             element['for_while_horizontal'] == False and \
             detections[i + 1]['elbow_top_left'] == False and \
-            detections[i]['command'] in ["obstacle detected", "no obstacle"]:
-    
+            detections[i]['command'] in ["obstacle detected", "no obstacle detected"]:
+
                 j = i + 1
                 if element['reverse_decision'] == True:
                     reverse = True
                 else:
                     reverse = False
-    
+
                 falseBranch = []
                 trueBranch = []
                 decision_x = element['coordinates'][0]
                 decision_y = element['coordinates'][1]
                 decision_x1 = element['x1']
                 decision_x2 = element['x2']
-    
+
                 decision_command = element['command']
                 pseudocode.append(f"    if {decision_command}")
-    
+
                 while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                   if detections[j]['type'] == 'arrowhead' and (decision_x1 < detections[j]['coordinates'][0] < decision_x2) and (detections[j]['coordinates'][1] > decision_y):
                       break
                   j += 1
-    
+
                 # Find the next non-arrow element while finding arrow of > 100 width
                 while j < len(detections) and (time.time() - start_time) < max_time:
                     # Check if the current detection is of type 'arrowhead' and its x-coordinate is within the decision boundaries
                     if j < len(detections) and detections[j]['type'] == 'arrowhead' and decision_x1 < detections[j]['coordinates'][0] < decision_x2:
                         break
-    
+
                     elif j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
-    
+
                     elif j < len(detections) and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
                         command = detections[j]['command']
                         if detections[j]['x1'] < decision_x:
@@ -1260,38 +1264,38 @@ def convert_to_pseudocode(detections):
                                 trueBranch.append(command)
                             else:
                                 falseBranch.append(command)
-    
+
                         else:
                             if reverse:
                                 falseBranch.append(command)
                             else:
                                 trueBranch.append(command)
                         j += 1
-    
+
                 if trueBranch:
                     for command in trueBranch:
                         pseudocode.append(f"        {command}")
-    
+
                 else:
                     pseudocode.append(f"        do nothing")
-    
-    
+
+
                 if falseBranch:
                     pseudocode.append("    else")
                     for command in falseBranch:
                         pseudocode.append(f"        {command}")
                     pseudocode.append("    endif")
-    
+
                 else:
                     pseudocode.append("    endif")
-    
-                
+
+
                 falseBranch = []
                 trueBranch = []
-    
-    
+
+
                 i = j  # Skip to after the decision block
-    
+
             #NONE OF THE ABOVE
             elif i < len(detections) and element['type'] == 'decision' and \
             (element['command'].startswith("unknown") or element['command'].startswith("no text")):
@@ -1299,38 +1303,41 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"    {decision_command}")
 
             i += 1
-            
+
         except KeyError as e:
             print(f"Error: Missing key {e} in detection element {detections[i]}")
-            pseudocode.append("end")  # Append "end" if there's a key error.
+            pseudocode.append("end")  # Append "stop" if there's a key error.
             break
-            
+
         except IndexError as e:
             print(f"Error: Index out of range. {e}")
-            pseudocode.append("end")  # Append "end" if there's an index error.
+            pseudocode.append("end")  # Append "stop" if there's an index error.
             break
         except Exception as e:
             print(f"Unexpected error occurred: {e}")
-            pseudocode.append("end")  # Append "end" for any other unexpected errors.
+            pseudocode.append("end")  # Append "stop" for any other unexpected errors.
             break
-    
 
+    # END will be added if not detected
+    if not end_detected:
+        pseudocode.append("end")
 
     return "\n".join(pseudocode)
 
 
 
 
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
-        "move forward": "f",
-        "move backward": "b",
-        "turn left": "l",
-        "turn right": "r",
-        "speed = low": "sl",
-        "speed = medium": "sm",
-        "speed = high": "sh",
-        "get distance": "gd"
+        "move forward": "F",
+        "move backward": "B",
+        "turn left": "L",
+        "turn right": "R",
+        "speed = low": "SL",
+        "speed = medium": "SM",
+        "speed = high": "SH",
+        "get distance": "GD"
     }
 
     commands = []
@@ -1338,18 +1345,18 @@ def translate_pseudocode(pseudocode):
 
     def parse_move(line):
         line = line.strip().lower()
-        match = re.match(r"move (forward|backward)(?: (\d+) seconds?)?", line)
+        match = re.match(r"move (forward|backward)(?: (\d+) second(?:s)?)?", line)
         if match:
-            direction = "f" if match.group(1) == "forward" else "b"
+            direction = "F" if match.group(1) == "forward" else "B"
             duration = match.group(2) if match.group(2) else "1"  # Default to 1 second
             return f"<{direction},{duration}>"
         return None
 
     def parse_condition(line):
-        if "if no obstacle" in line.lower():
-            return "<if,no>"
+        if "if no obstacle detected" in line.lower():
+            return "<IF,NO>"
         elif "if obstacle detected" in line.lower():
-            return "<if,o>"
+            return "<IF,O>"
         return None
 
     for line in pseudocode.split("\n"):
@@ -1360,27 +1367,27 @@ def translate_pseudocode(pseudocode):
 
         elif line.lower().startswith("repeat"):
             loop_stack.append("repeat")
-            match = re.match(r"repeat (\d+) times", line.lower())
+            match = re.match(r"repeat (\d+) time(?:s)?", line.lower())
             loop_count = match.group(1) if match else "1"
-            commands.append(f"<rpt,{loop_count}>")
+            commands.append(f"<RPT,{loop_count}>")
 
-        elif line.lower().startswith("while no obstacle"):
+        elif line.lower().startswith("while no obstacle detected"):
             loop_stack.append("while")
-            commands.append("<w,no>")
+            commands.append("<W,NO>")
 
         elif line.lower().startswith("while obstacle detected"):
             loop_stack.append("while")
-            commands.append("<w,o>")
+            commands.append("<W,O>")
 
         elif line.lower().startswith("endrepeat"):
             if loop_stack and loop_stack[-1] == "repeat":
                 loop_stack.pop()
-                commands.append("<endr>")
+                commands.append("<ENDR>")
 
         elif line.lower().startswith("endwhile"):
             if loop_stack and loop_stack[-1] == "while":
                 loop_stack.pop()
-                commands.append("<endw>")
+                commands.append("<ENDW>")
 
         elif line.lower().startswith("if"):
             condition = parse_condition(line)
@@ -1390,12 +1397,12 @@ def translate_pseudocode(pseudocode):
 
         elif line.lower().startswith("else"):
             if loop_stack and loop_stack[-1] == "if":
-                commands.append("<else>")
+                commands.append("<ELSE>")
 
         elif line.lower().startswith("endif"):
             if loop_stack and loop_stack[-1] == "if":
                 loop_stack.pop()
-                commands.append("<endif>")
+                commands.append("<ENDIF>")
 
         else:
             move_command = parse_move(line)
@@ -1605,7 +1612,7 @@ SyntaxError: {description}"""
             loop_stack.pop()
 
         elif line.startswith("while"):
-            if line not in {"while no obstacle", "while obstacle detected"}:
+            if line not in {"while no obstacle detected", "while obstacle detected"}:
                 return generate_error(line_no, line, "unrecognized 'while' condition")
             error = check_nested(line_no, "while")
             if error:
@@ -1618,7 +1625,7 @@ SyntaxError: {description}"""
             loop_stack.pop()
 
         elif line.startswith("if"):
-            if line not in {"if no obstacle", "if obstacle detected"}:
+            if line not in {"if no obstacle detected", "if obstacle detected"}:
                 return generate_error(line_no, line, "unrecognized 'if' condition")
             error = check_nested(line_no, "if")
             if error:
