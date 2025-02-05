@@ -901,6 +901,41 @@ def convert_to_pseudocode(detections):
     def capitalize_words(text):
         return ' '.join(word.capitalize() for word in text.split())
 
+    def sort_symbols_in_place(filtered_results):
+        target_classes = ['process', 'data', 'terminator', 'connector']
+        n = len(filtered_results)
+
+        for i in range(n):
+            # Ensure the current symbol is in target_classes
+            if filtered_results[i]['type'] not in target_classes:
+                continue
+
+            # Start with the current symbol
+            current = filtered_results[i]
+            current_pos = i
+            farthest_valid_pos = None
+
+            # Compare the current symbol with all subsequent symbols
+            for j in range(i + 1, n):
+                if filtered_results[j]['type'] in target_classes:
+                    next_symbol = filtered_results[j]
+
+                    # Check the overlap condition on the y-axis and the x-axis condition
+                    if (
+                        (not ((current['y2'] < next_symbol['y1']) or (current['y1'] > next_symbol['y2']))) and
+                        (next_symbol['x1'] <= next_symbol['x2'] <= current['x2'])
+                    ):
+                        farthest_valid_pos = j  # Update the farthest valid position
+
+            # If a valid farthest position is found, swap the symbols
+            if farthest_valid_pos is not None:
+                filtered_results[current_pos], filtered_results[farthest_valid_pos] = (
+                    filtered_results[farthest_valid_pos],
+                    filtered_results[current_pos],
+                )
+
+        return filtered_results
+
     while i < len(detections):
         try:
             element = detections[i]
@@ -935,7 +970,7 @@ def convert_to_pseudocode(detections):
                 else:
                     pseudocode.append(f"    {decision_command}")
 
-                while j < len(detections) and not (((decision_x1 <= detections[j]['coordinates'][0] <= decision_x2) and (decision_y2 < detections[j]['coordinates'][1])) or detections[j]['straight_down'] == True) and (time.time() - start_time) < max_time:
+                while j < len(detections) and not (((decision_x1 <= detections[j]['coordinates'][0] <= decision_x2) and (decision_y2 < detections[j]['coordinates'][1]))) and (time.time() - start_time) < max_time:
 
                     if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         commands.append(detections[j])
@@ -946,7 +981,8 @@ def convert_to_pseudocode(detections):
                         commands.append(detections[j])
                         j += 1
 
-                commands.sort(key=lambda x: x['x1'])
+                commands.sort(key=lambda x: x['pos'])
+                commands = sort_symbols_in_place(commands)
 
                 for command in commands:
                     if command['type'] in ['process', 'data', 'terminator']:
@@ -1323,6 +1359,7 @@ def convert_to_pseudocode(detections):
         pseudocode.append("end")
 
     return "\n".join(pseudocode)
+
 
 
 
