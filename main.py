@@ -1616,16 +1616,21 @@ SyntaxError: {description}"""
         line = line.strip().lower()  # Case-insensitive
 
         if line in {"start", "end"}:
-            return None  # Start and end are checked later
+            return None  # Start and Stop are checked later
 
         if line.startswith("move forward") or line.startswith("move backward"):
+            parts = line.split()
+            if len(parts) == 2 and parts[1] == "forward" or parts[1] == "backward":
+                return None  # "move forward" or "move backward" (default 1 sec)
             try:
-                if line in {"move forward", "move backward"}:
-                    return None  # Default to 1 second
-
-                seconds = int(line.split()[2])
-                if not (1 <= seconds <= 5):
-                    raise ValueError("duration out of range (1-5 seconds)")
+                if len(parts) == 4 and parts[2].isdigit() and parts[3] == "seconds":
+                    seconds = int(parts[2])
+                    if 1 <= seconds <= 5:
+                        return None  # Valid time range
+                elif len(parts) == 4 and parts[2] == "1" and parts[3] == "second":
+                    return None  # "move forward 1 second"
+                else:
+                    raise ValueError("malformed 'move forward/backward {1-5} seconds'")
             except (ValueError, IndexError):
                 return generate_error(line_no, line, "malformed 'move forward/backward {1-5} seconds'")
 
@@ -1684,7 +1689,7 @@ SyntaxError: {description}"""
 
         return None
 
-    # First and last lines must be Start and end
+    # First and last lines must be Start and Stop
     if pseudocode_lines[0].strip().lower() != "start":
         return generate_error(1, pseudocode_lines[0], "first line must be 'start'")
     if pseudocode_lines[-1].strip().lower() != "end":
@@ -1708,6 +1713,7 @@ SyntaxError: {description}"""
 
     # If no errors
     return {"status": "success", "error_message": "Pseudocode is valid"}
+
 
     
 
