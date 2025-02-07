@@ -177,7 +177,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
         symbol_height = ymax - ymin
 
         # 
-        size_threshold = 1.6
+        size_threshold = 1.5
 
         # Check if center of text inside the symbol bounding box
         center_inside = xmin <= center_x <= xmax and ymin <= center_y <= ymax
@@ -1737,10 +1737,10 @@ async def upload_image(file: UploadFile = File(...)):
     image = cv2.imread(resized_image_path)
 
     # Preprocess
-    preprocessed_img, preprocessed_ocr = preprocess_image(image)
+    #preprocessed_img, preprocessed_ocr = preprocess_image(image)
 
     # Detect the preprocessed image
-    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, preprocessed_ocr)
+    result, detection_result, boxes, confidences, arrow_data = detect_diagram(image, image)
     
     # Extra Sorting
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
