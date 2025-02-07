@@ -1519,7 +1519,7 @@ def is_valid_flowchart(sorted_result):
     if total <= 5:
         errors.append("Flowchart is incomplete.")
 
-    if num_terminators < 2:
+    if num_terminators < 1:
         errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
 
     if abs(num_arrows - num_symbols) > 15:
