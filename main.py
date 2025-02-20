@@ -507,16 +507,6 @@ def arrange_symbol_order(filtered_results):
                     filtered_results[i]['for_while'] = True
 
 
-                if (filtered_results[i]['type'] == 'decision' and
-                    any(filtered_results[j]['type'] == 'arrowhead' and
-                        filtered_results[j]['head_elbow_top_left_width'] == True and
-                        (abs(filtered_results[i]['center_x'] - filtered_results[j]['center_x']) < 150 and
-                        abs(filtered_results[i]['y1'] - filtered_results[j]['y2']) < 300)
-                        for j in range(max(0, i - 3), min(i + 2, len(filtered_results)))
-                        if j != i)):
-                    filtered_results[i]['for_while_horizontal'] = True
-
-
                 if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
                     next_four_symbols = filtered_results[i + 1:i + 5]
                     num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
