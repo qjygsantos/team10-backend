@@ -177,7 +177,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
         symbol_height = ymax - ymin
 
         # 
-        size_threshold = 1.5
+        size_threshold = 1.25
 
         # Check if center of text inside the symbol bounding box
         center_inside = xmin <= center_x <= xmax and ymin <= center_y <= ymax
@@ -385,7 +385,33 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['straight_leftRight'] = True
 
+                    # Arrow pointing left
+                    if abs(arrow['height'] - arrowhead['height']) < 40 and \
+                     (arrow['width'] > arrow['height']) and \
+                      (arrow['y2'] > arrowhead['center_y'] > arrow['y1']) and \
+                       (arrow['x1']< arrowhead['center_x'] < arrow['center_x']) and \
+                        (not any((d['elbow_bottom_left'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) or (d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) for d in detection_result)):
 
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrow' and \
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+
+                              detection['straight_left'] = True
+
+                    # Arrow pointing right
+                    if abs(arrow['height'] - arrowhead['height']) < 40 and \
+                     (arrow['width'] > arrow['height']) and \
+                      (arrow['y2'] > arrowhead['center_y'] > arrow['y1']) and \
+                       (arrow['center_x']< arrowhead['center_x'] < arrow['x2']) and \
+                        (not any((d['elbow_bottom_left'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) or (d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) for d in detection_result)):
+
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrow' and \
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+
+                              detection['straight_right'] = True
 
                     # Elbow arrow pointing up
                     if (arrow['center_x'] >= arrowhead['x2'] >= arrow['x1'] and \
@@ -399,6 +425,17 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['elbow_top_left_width'] = True
 
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrowhead' and
+                              detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y']) and
+                              not any(
+                                  d['head_elbow_bottom_curved'] == True and d['coordinates'] == (arrowhead['center_x'], arrowhead['center_y']) or
+                                  d['head_elbow_bottom_left'] == True and d['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])
+                                  for d in detection_result
+                              )):
+
+                              detection['head_elbow_top_left_width'] = True
 
                     # Elbow arrow pointing up
                     if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and \
@@ -434,29 +471,30 @@ def arrange_symbol_order(filtered_results):
     try:
         for i in range(len(filtered_results) - 1):
             if i < len(filtered_results) - 1:
-                if (filtered_results[i]['type'] == 'arrow' and 
-                    filtered_results[i - 1]['type'] == 'arrowhead' and 
+                if (filtered_results[i]['type'] == 'arrow' and
+                    filtered_results[i - 1]['type'] == 'arrowhead' and
                     filtered_results[i + 1]['type'] != 'arrowhead'):
                     filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
 
-                if (filtered_results[i]['elbow_bottom_curved'] == True and 
+                if (filtered_results[i]['elbow_bottom_curved'] == True and
                     filtered_results[i - 1]['type'] == 'arrow'):
                     filtered_results[i], filtered_results[i - 1] = filtered_results[i - 1], filtered_results[i]
 
                 # DO-WHILE Implementation
-                if (i > 0 and i + 1 < len(filtered_results) and 
-                    filtered_results[i]['type'] == 'arrowhead' and 
-                    filtered_results[i + 1]['type'] in ["process", "data"] and 
+                if (i > 0 and i + 1 < len(filtered_results) and
+                    filtered_results[i]['type'] == 'arrowhead' and
+                    filtered_results[i + 1]['type'] in ["process", "data"] and
                     filtered_results[i - 1]['type'] == 'arrowhead'):
                     removed_arrowhead = filtered_results.pop(i)
                     j = i + 1
-                    while (j + 1 < len(filtered_results) and 
-                          filtered_results[j]['type'] != 'decision' and 
+                    while (j + 1 < len(filtered_results) and
+                          filtered_results[j]['type'] != 'decision' and
                           filtered_results[j + 1]['elbow_top_left'] != True):
                         j += 1
                     new_index = j + 2
                     if new_index < len(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
+                        
 
                 # FOR and WHILE LOOP Implementation
                 if (filtered_results[i]['type'] == 'decision' and
@@ -467,6 +505,17 @@ def arrange_symbol_order(filtered_results):
                         for j in range(max(0, i - 3), min(i + 6, len(filtered_results)))
                         if j != i)):
                     filtered_results[i]['for_while'] = True
+
+
+                if (filtered_results[i]['type'] == 'decision' and
+                    any(filtered_results[j]['type'] == 'arrowhead' and
+                        filtered_results[j]['head_elbow_top_left_width'] == True and
+                        (abs(filtered_results[i]['center_x'] - filtered_results[j]['center_x']) < 150 and
+                        abs(filtered_results[i]['y1'] - filtered_results[j]['y2']) < 300)
+                        for j in range(max(0, i - 3), min(i + 2, len(filtered_results)))
+                        if j != i)):
+                    filtered_results[i]['for_while_horizontal'] = True
+
 
                 if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
                     next_four_symbols = filtered_results[i + 1:i + 5]
@@ -493,8 +542,8 @@ def arrange_symbol_order(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
 
                 # IF-ELSE
-                if (filtered_results[i]['type'] == 'decision' and 
-                    any(filtered_results[j]['command'] == 'yes' and 
+                if (filtered_results[i]['type'] == 'decision' and
+                    any(filtered_results[j]['command'] == 'yes' and
                         filtered_results[j]['x1'] < filtered_results[i]['coordinates'][0]
                         for j in [i + 1, i + 2, i + 3] if j < len(filtered_results))):
                     filtered_results[i]['reverse_decision'] = True
@@ -504,7 +553,7 @@ def arrange_symbol_order(filtered_results):
         print(f"Error encountered: {e}")
         return filtered_results
 
-    return filtered_results  
+    return filtered_results
 
 
 def detect_diagram(thresh2, thresh):
@@ -615,20 +664,22 @@ def detect_diagram(thresh2, thresh):
             'width': width,
             'command': matched_command if text != "no text detected" else text,
             'pos': pos,
-            'straight_leftRight': False,
-            'straight_arrow': False,
-            'straight_up': False,
-            'straight_down': False,
-            'elbow_top_left': False,
-            'elbow_top_left_width': False,
-            'elbow_bottom_curved': False,
-            'elbow_bottom_left': False,
             'orig_text': text,
             'conf': confidence,
             'reverse_decision': False,
             'for_while': False,
             'for_while_horizontal': False,
+            'straight_leftRight': False,
+            'straight_left': False,
+            'straight_right': False,
+            'straight_up': False,
+            'straight_down': False,
+            'elbow_top_left': False,
+            'elbow_top_left_width': False,
+            'elbow_bottom_left': False,
+            'elbow_bottom_curved': False,
             'head_elbow_top_left': False,
+            'head_elbow_top_left_width': False,
             'head_elbow_bottom_left': False,
             'head_elbow_bottom_curved': False
         }
@@ -1737,10 +1788,10 @@ async def upload_image(file: UploadFile = File(...)):
     image = cv2.imread(resized_image_path)
 
     # Preprocess
-    #preprocessed_img, preprocessed_ocr = preprocess_image(image)
+    preprocessed_img, preprocessed_ocr = preprocess_image(image)
 
     # Detect the preprocessed image
-    result, detection_result, boxes, confidences, arrow_data = detect_diagram(image, image)
+    result, detection_result, boxes, confidences, arrow_data = detect_diagram(preprocessed_img, preprocessed_ocr)
     
     # Extra Sorting
     sorted_result = sort_results(detection_result, boxes, confidences, arrow_data)
