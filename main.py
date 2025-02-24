@@ -323,7 +323,14 @@ def check_arrows(detection_result, arrow_data):
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
 
                                detection['straight_down'] = True
+                                   
+                        for detection in detection_result:
 
+                            if (detection['type'] == 'arrowhead' and \
+                              detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])):
+
+                              detection['head_straight_down'] = True
+                                  
                     # Arrow pointing up
                     if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['height'] > arrow['width']) and (arrow['y1'] < arrowhead['center_y'] < arrow['center_y']) and (arrow['x1']< arrowhead['center_x'] < arrow['x2']):
 
@@ -668,6 +675,7 @@ def detect_diagram(thresh2, thresh):
             'elbow_top_left_width': False,
             'elbow_bottom_left': False,
             'elbow_bottom_curved': False,
+            'head_straight_down': False,
             'head_elbow_top_left': False,
             'head_elbow_top_left_width': False,
             'head_elbow_bottom_left': False,
