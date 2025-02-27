@@ -78,7 +78,13 @@ start_end = ["start", "end"]
 
 predefined_conditions = ["repeat times", "no obstacle detected", "obstacle detected"]
 
-input_output = ["get distance", "speed = low", "speed = medium", "speed = high"]
+input_output = ["move forward",
+    "move forward seconds",
+    "move backward",
+    "move backward seconds",
+    "turn left", "turn right",
+    "speed = low", "speed = medium", "speed = high"]
+
 
 yes_no = ["yes", "no"]
 a_b_c = ["a", "b"]
@@ -643,7 +649,11 @@ def detect_diagram(thresh2, thresh):
 
         else:
             pos = y2
-
+            
+        if class_name.lower().replace("rotation", "") == 'data':
+            if matched_command.lower().startswith(("move forward", "move backward", "turn left", "turn right")):
+                    class_name = 'process'
+                
         if class_name.lower().replace("rotation", "") == 'connector' and matched_command in ['start', 'end']:
             class_name = 'terminator'
             
