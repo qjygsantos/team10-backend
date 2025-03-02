@@ -520,6 +520,14 @@ def arrange_symbol_order(filtered_results):
                     filtered_results[i]['for_while'] = True
 
 
+                if filtered_results[i]['type'] == 'decision':
+                    decision_x1 = filtered_results[i]['x1']
+                    decision_x2 = filtered_results[i]['x2']
+                    for j in range(max(0, i - 4), min(i + 1, len(filtered_results))):  # Check previous 4 and next 2 items
+                        if j != i and filtered_results[j]['type'] == 'arrowhead' and (decision_x1 <= filtered_results[j]['x1'] <= decision_x2) and \
+                          filtered_results[j].get('head_elbow_top_left_width', False):
+                            filtered_results[i]['for_while_horizontal'] = True
+
                 if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
                     next_four_symbols = filtered_results[i + 1:i + 5]
                     num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
