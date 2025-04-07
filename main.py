@@ -70,6 +70,7 @@ predefined_commands = [
     "move forward",
     "move forward seconds",
     "move backward",
+    "wait seconds",
     "move backward seconds",
     "turn left", "turn right",
     "speed = low", "speed = medium", "speed = high"
@@ -81,6 +82,7 @@ predefined_conditions = ["repeat times", "no obstacle detected", "obstacle detec
 input_output = ["move forward",
     "move forward seconds",
     "move backward",
+    "wait seconds",
     "move backward seconds",
     "turn left", "turn right",
     "speed = low", "speed = medium", "speed = high"]
@@ -91,13 +93,13 @@ a_b_c = ["a", "b"]
 
 
 # Google Drive model file ID
-#MODEL_FILE_ID = "1-laEKQEV2R7Il4GQ15WCHtC-2kYbcK4f"  
-#MODEL_PATH = "static/best.pt"  # Save model to this path
-
-MODEL_FILE_ID = "11CDqGVs19sf4oriLXZ6jxfGnEqe7q7DJ"  
+MODEL_FILE_ID = "1-hGAjAvmSoBaxz4vOyxccKKWwwYZVuv5"  
 MODEL_PATH = "static/best.pt"  # Save model to this path
 
-#MODEL_FILE_ID = "115oFkB-tenIyZU6fEKIZLzOMSGqrJXFO" 
+#MODEL_FILE_ID = "11CDqGVs19sf4oriLXZ6jxfGnEqe7q7DJ"  
+#MODEL_PATH = "static/best.pt"  # Save model to this path
+
+#MODEL_FILE_ID = "10e-VKPno9tlmiis10to6VqMjv6fCa2EC" 
 #MODEL_PATH = "static/best.pt"  # Save model to this path
 
 # Download the model from Google Drive to the 'models' directory
@@ -183,7 +185,7 @@ def get_text_in_bounding_box(xmin, ymin, xmax, ymax, ocr_data):
         symbol_height = ymax - ymin
 
         # 
-        size_threshold = 1.25
+        size_threshold = 1.35
 
         # Check if center of text inside the symbol bounding box
         center_inside = xmin <= center_x <= xmax and ymin <= center_y <= ymax
@@ -202,7 +204,7 @@ def normalize_unicode(text):
     cyrillic_to_latin = {'А': 'A', 'а': 'a', 'В': 'B', 'в': 'b', 'С': 'C', 'с': 'c', 'Д': 'D', 'д': 'd'}
     return ''.join(cyrillic_to_latin.get(char, char) for char in text)
 
-def text_matching(text, symbol_type=None):
+def match_text_with_commands(text, symbol_type=None):
     normalized_text = normalize_unicode(text.strip().lower())
 
     if normalized_text == "no text detected":
@@ -258,7 +260,7 @@ def text_matching(text, symbol_type=None):
                 best_match = predefined
 
     # Handle specific conditions and thresholds
-    if best_match == "repeat times" and highest_ratio >= 40:
+    if best_match == "repeat times" and highest_ratio >= 45:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
             return f"unknown ({text})"
@@ -271,15 +273,15 @@ def text_matching(text, symbol_type=None):
                 return f"unknown ({text})"
 
     elif best_match in ["no obstacle detected", "obstacle detected"]:
-        return best_match if highest_ratio >= 45 else f"unknown ({text})"
+        return best_match if highest_ratio >= 50 else f"unknown ({text})"
 
     elif best_match in ['start', 'end']:
-        return best_match if highest_ratio >= 40 else f"unknown ({text})"
+        return best_match if highest_ratio >= 55 else f"unknown ({text})"
 
     elif best_match in ['move forward', 'move backward']:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
-            return best_match if highest_ratio >= 50 else f"unknown ({text})"
+            return best_match if highest_ratio >= 55 else f"unknown ({text})"
         else:
             num = ''.join(temp)
             # Add logic for "move forward/backward {1-5} seconds" directly
@@ -289,12 +291,13 @@ def text_matching(text, symbol_type=None):
                 return f"unknown ({text})"
 
     elif best_match in ['turn left', 'turn right']:
-        return best_match if highest_ratio >= 45 else f"unknown ({text})"
+        return best_match if highest_ratio >= 50 else f"unknown ({text})"
 
     elif best_match in [
         "move forward seconds",
         "move backward seconds",
-    ] and highest_ratio >= 45:
+        "wait seconds"
+    ] and highest_ratio >= 55:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:
             return f"unknown ({text})"
@@ -308,7 +311,7 @@ def text_matching(text, symbol_type=None):
         return best_match if highest_ratio >= 15 else f"unknown ({text})"
 
     else:
-        if highest_ratio >= 35:
+        if highest_ratio >= 40 and best_match not in ["move forward seconds","move backward seconds","wait seconds"]:
             return best_match
         else:
             return f"unknown ({text})"
@@ -329,14 +332,14 @@ def check_arrows(detection_result, arrow_data):
                                detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
 
                                detection['straight_down'] = True
-                                   
+
                         for detection in detection_result:
 
                             if (detection['type'] == 'arrowhead' and \
                               detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])):
 
                               detection['head_straight_down'] = True
-                                  
+
                     # Arrow pointing up
                     if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['height'] > arrow['width']) and (arrow['y1'] < arrowhead['center_y'] < arrow['center_y']) and (arrow['x1']< arrowhead['center_x'] < arrow['x2']):
 
@@ -426,7 +429,32 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['straight_right'] = True
 
-                    # Elbow arrow pointing up
+                    # Elbow upward
+                    if (arrow['x2'] >= arrowhead['center_x'] >= arrow['x1'] and \
+                        arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and \
+                        arrow['height'] >= arrow['width']):
+
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+
+                              detection['elbow_upward'] = True
+
+                    # Elbow downward
+                    if (arrow['x2'] >= arrowhead['center_x'] >= arrow['x1'] and \
+                        arrow['center_y'] <= arrowhead['y1'] <= arrow['y2'] and \
+                        abs(arrow['width'] - arrowhead['width']) > 40):
+
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrow' and
+                              detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+
+                              detection['elbow_downward'] = True
+
+
+                    # Elbow arrow pointing up left with width greater than height
                     if (arrow['center_x'] >= arrowhead['x2'] >= arrow['x1'] and \
                         arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and \
                         (arrow['width'] >= arrow['height'])):
@@ -450,7 +478,8 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['head_elbow_top_left_width'] = True
 
-                    # Elbow arrow pointing up
+
+                    # Elbow arrow pointing up left
                     if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and \
                         arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and \
                         not any((d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) or (d['elbow_bottom_left'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) for d in detection_result)):
@@ -570,7 +599,7 @@ def arrange_symbol_order(filtered_results):
 def detect_diagram(thresh2, thresh):
 
     result_ocr = perform_OCR(thresh)
-    result = model.predict(thresh2, conf=0.35, iou=0.65)[0]
+    result = model.predict(thresh2, conf=0.3, iou=0.7)[0]
 
     
     boxes_np = result.boxes.xyxy.cpu().numpy()
@@ -644,10 +673,10 @@ def detect_diagram(thresh2, thresh):
         confidences.append(confidence)
 
         if class_name.lower().replace("rotation", "") == 'decision':
-            pos = y1 + 20
+            pos = y1 + 10
 
         elif class_name == 'arrow':
-            pos = y2 - 15
+            pos = y2 - 10
 
         elif class_name == 'arrowhead':
             pos = y2
@@ -659,7 +688,7 @@ def detect_diagram(thresh2, thresh):
             pos = y2
             
         if class_name.lower().replace("rotation", "") == 'data':
-            if matched_command.lower().startswith(("move forward", "move backward", "turn left", "turn right")):
+            if matched_command.lower().startswith(("move forward", "move backward", "turn left", "turn right", "wait")):
                     class_name = 'process'
                 
         if class_name.lower().replace("rotation", "") == 'connector' and matched_command in ['start', 'end']:
@@ -693,6 +722,8 @@ def detect_diagram(thresh2, thresh):
             'elbow_top_left_width': False,
             'elbow_bottom_left': False,
             'elbow_bottom_curved': False,
+            'elbow_upward': False,
+            'elbow_downward': False,
             'head_straight_down': False,
             'head_elbow_top_left': False,
             'head_elbow_top_left_width': False,
@@ -843,14 +874,7 @@ def print_result(detection_result, image_path):
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image_height, image_width = image.shape[:2]
-    color_dict = {
-        "process": (255, 0, 0),  # Blue for process
-        "decision": (0, 165, 255),  # Yellow for decision
-        "terminator": (0, 0, 255),  # Red for terminator
-        "data": (255, 0, 127),  # Violet for data
-        "arrow": (255, 0, 255),  # Magenta for arrow
-        "connector": (0,0,0)
-    }
+
     # Base scale for text
     base_scale = 0.02
 
@@ -870,9 +894,15 @@ def print_result(detection_result, image_path):
             y = detection["coordinates"][1]
 
 
-        # Get color from color_dict based on class name
-        class_name = detection["type"]
-        color = color_dict.get(class_name, (0, 0, 0))
+        # Get color
+        conf = detection.get("conf", 0) * 100  # Convert confidence to percentage
+
+        if conf < 50:
+            color = (0, 0, 255)  # Red
+        elif conf >= 50:
+            color = (0, 255, 0)  # Green
+        else:
+            color = (255, 255, 255)  # Default to white (if confidence is below 25)
 
 
         if detection["type"] not in ["arrowhead"]:
@@ -1022,6 +1052,7 @@ def convert_to_pseudocode(detections):
                 pseudocode.append(f"    {command}")
 
             # Decision symbols (nested decision not yet implemented)
+
             #HORIZONTAL REPEAT/WHILE LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
             element['for_while_horizontal'] == True:
@@ -1430,6 +1461,7 @@ def convert_to_pseudocode(detections):
 
 
 
+
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "move forward": "F",
@@ -1454,6 +1486,15 @@ def translate_pseudocode(pseudocode):
             return f"<{direction}>" if not duration or duration == "1" else f"<{direction},{duration}>"
         return None
 
+    def parse_wait(line):
+        line = line.strip().lower()
+        match = re.match(r"wait (\d+) second(?:s)?", line)
+        if match:
+            duration = int(match.group(1))
+            if 1 <= duration <= 5:
+                return f"<D,{duration}>"
+        return None
+
     def parse_condition(line):
         if "if no obstacle detected" in line.lower():
             return "<IF,NO>"
@@ -1471,25 +1512,25 @@ def translate_pseudocode(pseudocode):
             loop_stack.append("repeat")
             match = re.match(r"repeat (\d+) time(?:s)?", line.lower())
             loop_count = match.group(1) if match else "1"
-            commands.append(f"<RPT,{loop_count}>")
+            commands.append(f"<REPEAT,{loop_count}>")
 
         elif line.lower().startswith("while no obstacle detected"):
             loop_stack.append("while")
-            commands.append("<W,NO>")
+            commands.append("<WHILE,NO>")
 
         elif line.lower().startswith("while obstacle detected"):
             loop_stack.append("while")
-            commands.append("<W,O>")
+            commands.append("<WHILE,O>")
 
         elif line.lower().startswith("endrepeat"):
             if loop_stack and loop_stack[-1] == "repeat":
                 loop_stack.pop()
-                commands.append("<ENDR>")
+                commands.append("<ENDREPEAT>")
 
         elif line.lower().startswith("endwhile"):
             if loop_stack and loop_stack[-1] == "while":
                 loop_stack.pop()
-                commands.append("<ENDW>")
+                commands.append("<ENDWHILE>")
 
         elif line.lower().startswith("if"):
             condition = parse_condition(line)
@@ -1508,8 +1549,12 @@ def translate_pseudocode(pseudocode):
 
         else:
             move_command = parse_move(line)
+            wait_command = parse_wait(line)
+
             if move_command:
                 commands.append(move_command)
+            elif wait_command:
+                commands.append(wait_command)
             else:
                 for key, value in command_mapping.items():
                     if key in line.lower():
@@ -1519,14 +1564,17 @@ def translate_pseudocode(pseudocode):
 
 
 
+
 def is_valid_flowchart(sorted_result):
     total = len(sorted_result)
+    val = 0
     num_terminators = 0
     num_arrows = 0
     num_process_data = 0
     num_decision = 0
     num_symbols = 0
     num_connectors = 0
+    num_arrowheads = 0
 
     command_none_count = 0
     invalid_decision_count = 0
@@ -1535,42 +1583,59 @@ def is_valid_flowchart(sorted_result):
     upward_arrow_count = 0
 
     terminator_commands = []  # Store commands of terminator symbols
+    low_confidence_symbols = []  # Store low confidence symbols
+    unrecognized_commands = []  # Store unrecognized commands
+
     errors = []  # To accumulate error messages
+    warnings = []  # To accumulate warning messages
 
     # Analyze sorted_result
     for detection in sorted_result:
         label = detection['type']
         command = detection.get('command', None)
+        confidence = detection.get('conf', 100)  # Default to 100 if not present
 
         if label not in ['arrow', 'arrowhead']:
-            num_symbols += 1
+
+
+            if confidence < 0.50:
+                low_confidence_symbols.append(f"{label} (conf: {confidence})")
 
             if label in ['process', 'data']:
+                num_symbols += 1
                 num_process_data += 1
                 if command.startswith("no text") or command.startswith("unknown"):
                     command_none_count += 1
+                    unrecognized_commands.append(f"{label}: {command}")
 
             elif label == 'connector':
+                num_symbols += 0.5
                 num_connectors += 1
 
             elif label == 'decision':
+                num_symbols += 2
                 num_decision += 1
+
                 if command.startswith("no text") or command.startswith("unknown"):
-                    invalid_decision_count += 1
+                    command_none_count += 1
+                    unrecognized_commands.append(f"{label}: {command}")
 
             elif label == 'terminator':
+                num_symbols += 1
                 num_terminators += 1
                 if command.startswith("no text") or command.startswith("unknown"):
                     command_none_count += 1
+                    unrecognized_commands.append(f"{label}: {command}")
                 else:
                     terminator_commands.append(command.strip().lower())
 
         elif label == 'arrow':
+            if confidence < 0.50:
+                low_confidence_symbols.append(f"{label} (conf: {confidence})")
             num_arrows += 1
-            # Check if the arrow is an elbow arrow
             if any(
                 detection.get(key, False)
-                for key in ['elbow_top_left', 'elbow_top_left_width', 'elbow_bottom_curved', 'elbow_bottom_left']
+                for key in ['elbow_upward', 'elbow_downward']
             ):
                 elbow_arrow_count += 1
 
@@ -1580,56 +1645,118 @@ def is_valid_flowchart(sorted_result):
             ):
                 upward_arrow_count += 1
 
+        elif label == 'arrowhead':
+            num_arrowheads += 1
 
     # Error Conditions
 
-    if total <= 5:
-        errors.append("Flowchart is incomplete.")
+    if num_symbols == 0:
+        errors.append("No symbols found in the flowchart.")
 
-    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
-        errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
-
-    if abs(num_arrows - num_symbols) > 10:
-        errors.append("Missing arrows (check downward, left/right arrows).")
-
-    if upward_arrow_count > 5:
-        errors.append("Upward arrows are not allowed.")
-
-    if num_connectors != 0 and num_connectors % 2 != 0:
-        errors.append("Missing connector link.")
+    if num_arrows == 0:
+        errors.append("No arrows found in the flowchart.")
 
     if num_process_data == 0:
         errors.append("Flowchart must include at least one process or data symbol.")
 
-    if invalid_decision_count > 0:
-        errors.append("Decision symbol/s contain invalid conditions.")
+    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
+        errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
 
-    if num_decision > elbow_arrow_count:
-        errors.append("Missing arrows (check loops or conditionals).")
-
-    if command_none_count >= 2:
-        errors.append("Unrecognized commands in process/data symbols.")
+    if num_connectors % 2 != 0:
+        errors.append("Flowchart connectivity error: Missing connector link.")
 
 
-    # Minor Issues
-    minor_issues = []
-    if command_none_count == 1:
-        minor_issues.append("Invalid command was found in process / data symbol. Replace it with a correct command syntax.")
-    if 1 <= abs(num_arrows - num_symbols) <= 8:
-        minor_issues.append(f"There are {num_symbols} symbols found in the flowchart but {num_arrows} arrows. Verify if the symbols are connected properly")
 
+
+    if num_symbols <= 10:
+        if num_decision == 0:
+            val = abs(num_symbols - num_arrowheads)
+
+            if val > 1:
+                errors.append("Flowchart connectivity error: Missing arrows")
+        else:
+
+            if num_symbols >= num_arrowheads:
+                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
+            else:
+                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
+
+            if val >= 0.4:
+                errors.append("Flowchart connectivity error: Missing arrows")
+
+    if 20 >= num_symbols > 10:
+        if num_decision == 0:
+            val = abs(num_symbols - num_arrowheads)
+
+            if val > 2:
+                errors.append("Flowchart connectivity error: Missing arrows")
+        else:
+
+            if num_symbols >= num_arrowheads:
+                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
+            else:
+                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
+
+            if val >= 0.28:
+                errors.append("Flowchart connectivity error: Missing arrows")
+
+
+    if 30 >= num_symbols > 20:
+        if num_decision == 0:
+            val = abs(num_symbols - num_arrowheads)
+
+            if val > 3:
+                errors.append("Flowchart connectivity error: Missing arrows")
+        else:
+
+            if num_symbols >= num_arrowheads:
+                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
+            else:
+                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
+
+            if val >= 0.23:
+                errors.append("Flowchart connectivity error: Missing arrows")
+
+
+    if num_symbols > 30:
+        if num_decision == 0:
+            val = abs(num_symbols - num_arrowheads)
+
+            if val > 4:
+                errors.append("Flowchart connectivity error: Missing arrows")
+        else:
+
+            if num_symbols >= num_arrowheads:
+                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
+            else:
+                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
+
+            if val >= 0.19:
+                errors.append("Flowchart connectivity error: Missing arrows")
+
+
+    if command_none_count >= 1:
+        errors.append(f"One or more symbols contain unrecognized commands or no command at all: {', '.join(unrecognized_commands)}")
+
+    # Warnings
+
+    if low_confidence_symbols:
+        warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
+
+    if elbow_arrow_count != 0 and abs(num_symbols - elbow_arrow_count ) >= 3:
+        warnings.append("Flowchart connectivity warning: check for missing arrows")
 
     # Final Decision
-    if not errors and not minor_issues:
+    if not errors and not warnings:
         return {
             "status": "success",
             "error_list": "",
             "dialog_message": "No errors were found! You may click 'Next' to proceed."
         }
-    elif not errors and minor_issues:
+    elif not errors and warnings:
         return {
             "status": "success",
-            "error_list": "\n".join(minor_issues),
+            "error_list": "\n".join(warnings),
             "dialog_message": "Click next to proceed. Double-check the pseudocode before running the commands on the robot!"
         }
     else:
@@ -1638,6 +1765,7 @@ def is_valid_flowchart(sorted_result):
             "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + "\n".join(errors),
             "dialog_message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details."
         }
+
 
 
 def validate_pseudocode(pseudocode: str):
@@ -1700,6 +1828,24 @@ SyntaxError: {description}"""
                     raise ValueError("malformed 'move forward/backward {1-5} seconds'")
             except (ValueError, IndexError):
                 return generate_error(line_no, line, "malformed 'move forward/backward {1-5} seconds'")
+
+        elif line.startswith("wait"):
+            parts = line.split()
+            try:
+                if len(parts) == 3 and parts[1].isdigit() and parts[2] == "seconds":
+                    seconds = int(parts[1])
+                    if 1 <= seconds <= 5:
+                        return None  # Valid time range for wait command
+                    else:
+                        raise ValueError("wait time out of range (1-5 seconds)")
+                elif len(parts) == 3 and parts[1] == "1" and parts[2] == "second":
+                    return None  # "wait 1 second"
+                else:
+                    raise ValueError("malformed 'wait {1-5} seconds'")
+            except (ValueError, IndexError):
+                return generate_error(line_no, line, "malformed 'wait {1-5} seconds'")
+
+
 
         elif line.startswith("repeat"):
             try:
@@ -1780,6 +1926,7 @@ SyntaxError: {description}"""
 
     # If no errors
     return {"status": "success", "error_message": "Pseudocode is valid"}
+
 
 
     
