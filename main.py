@@ -39,7 +39,7 @@ for directory in ['static/objects', 'static/detected_images', 'static/models']:
         os.makedirs(directory)
 
 # Create JSON files from environment variables
-google_credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON2")
+google_credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON3")
 firebase_credentials_json = os.environ.get("FIREBASE_APPLICATION_CREDENTIALS_JSON")
 
 if google_credentials_json:
