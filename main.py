@@ -2008,11 +2008,17 @@ async def upload_image(file: UploadFile = File(...)):
         # Convert to Pseudo and String
         pseudocode_result = convert_to_pseudocode(sorted_result)
         arduino_commands = translate_pseudocode(pseudocode_result)
+        arduino_commands_text = "\n".join(arduino_commands)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
             pseudocode_file.write(pseudocode_result)    
+
+        # Save the Arduino Command
+        arduino_command_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '_serial.txt')
+        with open(arduino_command_path, 'w') as arduino_file:
+            arduino_file.write(arduino_commands_text)    
             
         # Upload image with detections to Firebase Storage
         blob = bucket.blob(f'detected_images/{os.path.basename(resized_image_path)}')
@@ -2024,9 +2030,15 @@ async def upload_image(file: UploadFile = File(...)):
         pseudocode_blob.upload_from_filename(pseudocode_path)
         pseudocode_url = pseudocode_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
 
+        # Upload arduino commands to Firebase Storage
+        arduino_blob = bucket.blob(f'detected_images/{os.path.basename(arduino_command_path)}')
+        arduino_blob.upload_from_filename(arduino_command_path)
+        arduino_url = arduino_blob.generate_signed_url(expiration=datetime.timedelta(days=7))
+        
         # Clean up temporary files
         os.remove(image_path)
         os.remove(pseudocode_path)
+        os.remove(arduino_command_path)
         os.remove(resized_image_path)
     
         return JSONResponse({
@@ -2036,6 +2048,7 @@ async def upload_image(file: UploadFile = File(...)):
             "message": checking_result["dialog_message"],
             "error_list": checking_result["error_list"],
             "arduino_commands": arduino_commands
+            "arduino_url": arduino_url,
         })
         
 
