@@ -2047,8 +2047,8 @@ async def upload_image(file: UploadFile = File(...)):
             "pseudocode_url": pseudocode_url,
             "message": checking_result["dialog_message"],
             "error_list": checking_result["error_list"],
-            "arduino_commands": arduino_commands
-            "arduino_url": arduino_url,
+            "arduino_commands": arduino_commands,
+            "arduino_url": arduino_url
         })
         
 
