@@ -2008,7 +2008,9 @@ async def upload_image(file: UploadFile = File(...)):
         # Convert to Pseudo and String
         pseudocode_result = convert_to_pseudocode(sorted_result)
         arduino_commands = translate_pseudocode(pseudocode_result)
-        arduino_commands_text = "\n".join(arduino_commands)
+        
+        command_list = re.findall(r'<[^>]*>', arduino_commands)
+        arduino_commands_text = "\n".join(command_list)
 
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
