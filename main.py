@@ -2042,6 +2042,10 @@ async def upload_image(file: UploadFile = File(...)):
         os.remove(pseudocode_path)
         os.remove(arduino_command_path)
         os.remove(resized_image_path)
+
+        print(pseudocode_url)
+        print(arduino_commands)
+        print(arduino_url)
     
         return JSONResponse({
             "status": "Success",
