@@ -2043,10 +2043,7 @@ async def upload_image(file: UploadFile = File(...)):
         os.remove(resized_image_path)
 
         print(pseudocode_url)
-        print("{") 
-        print("serial_command:") 
-        print(arduino_commands)
-        print("}")
+        print("{\n\tarduino_command:\n\t*" + arduino_commands + "\n}") 
         print(arduino_url)
         
         return JSONResponse({
