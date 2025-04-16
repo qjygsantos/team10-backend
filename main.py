@@ -1375,7 +1375,7 @@ def convert_to_pseudocode(detections):
                 decision_x2 = element['x2']
 
                 decision_command = element['command']
-                pseudocode.append(f"    if {decision_command}")
+                pseudocode.append(f"    if {decision_command} then")
 
                 while j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                   if detections[j]['type'] == 'arrowhead' and (decision_x1 < detections[j]['coordinates'][0] < decision_x2) and (detections[j]['coordinates'][1] > decision_y):
@@ -1878,7 +1878,7 @@ SyntaxError: {description}"""
             loop_stack.pop()
 
         elif line.startswith("if"):
-            if line not in {"if no obstacle detected", "if obstacle detected"}:
+            if line not in {"if no obstacle detected then", "if obstacle detected then"}:
                 return generate_error(line_no, line, "unrecognized 'if' condition")
             error = check_nested(line_no, "if")
             if error:
@@ -2043,7 +2043,7 @@ async def upload_image(file: UploadFile = File(...)):
         os.remove(resized_image_path)
 
         print(pseudocode_url)
-        print("{\n\tarduino_command:\n\t*" + arduino_commands + "\n}") 
+        print("{\n\tarduino_command:\n\t" + arduino_commands + "\n}") 
         print(arduino_url)
         
         return JSONResponse({
