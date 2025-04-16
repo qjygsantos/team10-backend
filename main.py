@@ -2011,7 +2011,6 @@ async def upload_image(file: UploadFile = File(...)):
         
         command_list = re.findall(r'<[^>]*>', arduino_commands)
         arduino_commands_text = "\n".join(command_list)
-
         # Save the pseudocode 
         pseudocode_path = os.path.join('static/detected_images', file.filename.split('.')[0] + '.txt')
         with open(pseudocode_path, 'w') as pseudocode_file:
@@ -2044,9 +2043,12 @@ async def upload_image(file: UploadFile = File(...)):
         os.remove(resized_image_path)
 
         print(pseudocode_url)
+        print("{") 
+        print("serial_command:") 
         print(arduino_commands)
+        print("}")
         print(arduino_url)
-    
+        
         return JSONResponse({
             "status": "Success",
             "image_url": image_url,
