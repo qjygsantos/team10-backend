@@ -2043,7 +2043,13 @@ async def upload_image(file: UploadFile = File(...)):
         os.remove(resized_image_path)
 
         print(pseudocode_url)
-        print("{\n\tarduino_command:\n\t" + arduino_commands + "\n}") 
+        
+        commands = re.findall(r'<[^<>]+>', arduino_commands)
+        # Join with newline and tab after the first line
+        formatted_commands = '\"\n\t' + '\n\t'.join(commands) + '\n\"'
+        # Print formatted output
+        print("{\n\tarduino_command: " + formatted_commands + "\n}")
+
         print(arduino_url)
         
         return JSONResponse({
