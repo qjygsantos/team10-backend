@@ -1681,7 +1681,7 @@ def is_valid_flowchart(sorted_result):
             else:
                 val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
 
-            if val >= 0.4:
+            if val >= 0.75:
                 errors.append("Flowchart connectivity error: Missing arrows")
 
     if 20 >= num_symbols > 10:
@@ -1697,7 +1697,7 @@ def is_valid_flowchart(sorted_result):
             else:
                 val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
 
-            if val >= 0.28:
+            if val >= 0.6:
                 errors.append("Flowchart connectivity error: Missing arrows")
 
 
@@ -1714,7 +1714,7 @@ def is_valid_flowchart(sorted_result):
             else:
                 val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
 
-            if val >= 0.23:
+            if val >= 0.4:
                 errors.append("Flowchart connectivity error: Missing arrows")
 
 
@@ -1731,7 +1731,7 @@ def is_valid_flowchart(sorted_result):
             else:
                 val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
 
-            if val >= 0.19:
+            if val >= 0.35:
                 errors.append("Flowchart connectivity error: Missing arrows")
 
 
