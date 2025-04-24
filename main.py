@@ -566,6 +566,13 @@ def arrange_symbol_order(filtered_results):
                     if num_both >= 2:
                         filtered_results[i]['for_while_horizontal'] = True
 
+
+                if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
+                    past_three_symbols = filtered_results[i - 3:i]
+                    num_arrowheads = sum(1 for symbol in past_three_symbols if symbol['type'] == 'arrowhead')
+                    if num_arrowheads >= 2:
+                        filtered_results[i]['for_while_horizontal'] = True
+
                 if (filtered_results[i]['type'] == 'decision' and filtered_results[i]['for_while'] == True and
                     filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == False):
                     filtered_results[i], filtered_results[i + 1] = filtered_results[i + 1], filtered_results[i]
