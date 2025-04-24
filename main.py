@@ -1393,7 +1393,7 @@ def convert_to_pseudocode(detections):
 
                     elif j < len(detections) and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
                         command = detections[j]['command']
-                        if detections[j]['x1'] < decision_x:
+                        if detections[j]['center_x'] < decision_x:
                             if reverse:
                                 trueBranch.append(command)
                             else:
