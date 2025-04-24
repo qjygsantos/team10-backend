@@ -1074,7 +1074,7 @@ def convert_to_pseudocode(detections):
                         commands.append(detections[j])
                         j += 1
 
-                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator']):
+                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data']):
                         command = detections[j]['command']
                         commands.append(detections[j])
                         j += 1
@@ -1083,7 +1083,7 @@ def convert_to_pseudocode(detections):
                 commands = sort_symbols_in_place(commands)
 
                 for command in commands:
-                    if command['type'] in ['process', 'data', 'terminator']:
+                    if command['type'] in ['process', 'data']:
                         pseudocode.append(f"        {command['command']}")
 
                 if decision_command.startswith("repeat"):
@@ -1117,15 +1117,15 @@ def convert_to_pseudocode(detections):
                     k -= 1
 
                 if detections[k]['type'] not in ["arrow", "arrowhead"]:
-
-                    pseudocode.append(f"        {detections[k]['command']}") #append the first item of loop body
+                    if detections[k]['command'] != 'start':
+                      pseudocode.append(f"        {detections[k]['command']}") #append the first item of loop body
 
                 #now go downwards to get the other items til it goes back to decision symbol
                 while k < len(detections) and detections[k]['type'] != 'decision' and detections[k]['coordinates'][1] != do_while_y_coord:
 
                     k += 1
 
-                    if detections[k]['type'] in ['process', 'data', 'terminator']:
+                    if detections[k]['type'] in ['process', 'data']:
 
                         pseudocode.append(f"        {detections[k]['command']}")
 
@@ -1172,7 +1172,7 @@ def convert_to_pseudocode(detections):
                             elif l < len(detections) and detections[l]['type'] in ['arrow', 'arrowhead']:
                                 l += 1
 
-                            elif l < len(detections) and (detections[l]['type'] in ['process', 'data', 'terminator', 'decision']):
+                            elif l < len(detections) and (detections[l]['type'] in ['process', 'data', 'decision']):
 
                                 command = detections[l]['command']
                                 if detections[l]['x1'] < decision_x:
