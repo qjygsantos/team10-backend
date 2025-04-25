@@ -548,6 +548,8 @@ def arrange_symbol_order(filtered_results):
                         if j != i)):
                     filtered_results[i]['for_while'] = True
 
+                if (filtered_results[i]['type'] == 'decision' and filtered_results[i]['command'].startswith('repeat')):
+                    filtered_results[i]['for_while'] = True
 
                 if filtered_results[i]['type'] == 'decision':
                     decision_x1 = filtered_results[i]['x1']
@@ -1248,7 +1250,7 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
-                while j < len(detections) and detections[j]['elbow_top_left'] != True and (time.time() - start_time) < max_time:
+                while j < len(detections) and ((detections[j]['elbow_top_left'] != True) and (detections[j]['elbow_bottom_curved'] != True)) and (time.time() - start_time) < max_time:
 
                     if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
 
@@ -1398,9 +1400,9 @@ def convert_to_pseudocode(detections):
                     elif j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
                         j += 1
 
-                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data','terminator', 'decision']):
+                    elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'decision']):
                         command = detections[j]['command']
-                        if detections[j]['coordinates'][0] < decision_x:
+                        if detections[j]['x1'] < decision_x1:
                             if reverse:
                                 trueBranch.append(command)
                             else:
