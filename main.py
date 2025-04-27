@@ -316,7 +316,7 @@ def text_matching(text, symbol_type=None):
         else:
             return f"unknown ({text})"
 
-    
+
 def check_arrows(detection_result, arrow_data):
     for arrow in arrow_data:
         if arrow['type'] == 'arrow':
@@ -340,14 +340,7 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['head_straight_down'] = True
 
-                    # Arrow pointing up
-                    if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['height'] > arrow['width']) and (arrow['y1'] < arrowhead['center_y'] < arrow['center_y']) and (arrow['x1']< arrowhead['center_x'] < arrow['x2']):
 
-                        for detection in detection_result:
-                            if (detection['type'] == 'arrow' and
-                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
-
-                               detection['straight_up'] = True
 
                     # Elbow Arrow pointing down
                     if (arrow['x2'] >= arrowhead['x1'] >= arrow['x1'] and \
@@ -401,6 +394,13 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['straight_leftRight'] = True
 
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrowhead' and \
+                              detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])):
+
+                              detection['head_straight_leftRight'] = True
+
                     # Arrow pointing left
                     if abs(arrow['height'] - arrowhead['height']) < 40 and \
                      (arrow['width'] > arrow['height']) and \
@@ -414,6 +414,13 @@ def check_arrows(detection_result, arrow_data):
                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
 
                               detection['straight_left'] = True
+                              
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrowhead' and \
+                              detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])):
+
+                              detection['head_straight_left'] = True
 
                     # Arrow pointing right
                     if abs(arrow['height'] - arrowhead['height']) < 40 and \
@@ -429,6 +436,12 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['straight_right'] = True
 
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrowhead' and \
+                              detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])):
+
+                              detection['head_straight_right'] = True
                     # Elbow upward
                     if (arrow['x2'] >= arrowhead['center_x'] >= arrow['x1'] and \
                         arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and \
@@ -482,7 +495,8 @@ def check_arrows(detection_result, arrow_data):
                     # Elbow arrow pointing up left
                     if (arrow['x2'] >= arrowhead['x2'] >= arrow['x1'] and \
                         arrow['center_y'] >= arrowhead['y2'] >= arrow['y1'] and \
-                        not any((d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) or (d['elbow_bottom_left'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) for d in detection_result)):
+                        not any((d['elbow_bottom_curved'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) or
+                                (d['elbow_bottom_left'] and d['coordinates'] == (arrow['center_x'], arrow['center_y'])) for d in detection_result)):
 
                         for detection in detection_result:
 
@@ -503,6 +517,23 @@ def check_arrows(detection_result, arrow_data):
 
                               detection['head_elbow_top_left'] = True
 
+                    # Arrow pointing up
+                    if abs(arrow['width'] - arrowhead['width']) < 40 and (arrow['height'] > arrow['width']) and (arrow['y1'] < arrowhead['center_y'] < arrow['center_y']) and (arrow['x1']< arrowhead['center_x'] < arrow['x2']):
+
+                        for detection in detection_result:
+                            if (detection['type'] == 'arrow' and
+                               detection['coordinates'] == (arrow['center_x'], arrow['center_y'])):
+
+                               detection['straight_up'] = True
+                               detection['elbow_top_left'] = False
+
+                        for detection in detection_result:
+
+                            if (detection['type'] == 'arrowhead' and \
+                              detection['coordinates'] == (arrowhead['center_x'], arrowhead['center_y'])):
+
+                              detection['head_straight_up'] = True
+                              detection['head_elbow_top_left'] = False
     return detection_result
 
 def arrange_symbol_order(filtered_results):
@@ -536,7 +567,7 @@ def arrange_symbol_order(filtered_results):
                     new_index = j + 2
                     if new_index < len(filtered_results):
                         filtered_results.insert(new_index, removed_arrowhead)
-                        
+
 
                 # FOR and WHILE LOOP Implementation
                 if (filtered_results[i]['type'] == 'decision' and
@@ -551,6 +582,29 @@ def arrange_symbol_order(filtered_results):
                 if (filtered_results[i]['type'] == 'decision' and filtered_results[i]['command'].startswith('repeat')):
                     filtered_results[i]['for_while'] = True
 
+                if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
+                    next_four_symbols = filtered_results[i + 1:i + 5]
+                    num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
+                    num_elbow_top_left = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left', False))
+                    num_elbow_top_left_width = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left_width', False))
+                    num_both = num_straight_leftright + num_elbow_top_left + num_elbow_top_left_width
+
+                    if num_both >= 2:
+                        filtered_results[i]['for_while_horizontal'] = True
+
+                if (filtered_results[i]['type'] == 'decision' and i + 5 < n):
+
+                    num_straight_left = sum(1 for symbol in next_four_symbols if symbol.get('straight_left', False))
+                    num_straight_right = sum(1 for symbol in next_four_symbols if symbol.get('straight_right', False))
+                    num_head_straight_left = sum(1 for symbol in next_four_symbols if symbol.get('head_straight_left', False))
+                    num_head_straight_right = sum(1 for symbol in next_four_symbols if symbol.get('head_straight_right', False))
+
+                    if (num_straight_left == 1 and 
+                        num_straight_right == 1 and 
+                        num_head_straight_left == 1 and 
+                        num_head_straight_right == 1):
+                        filtered_results[i]['for_while_horizontal'] = False
+
                 if filtered_results[i]['type'] == 'decision':
                     decision_x1 = filtered_results[i]['x1']
                     decision_x2 = filtered_results[i]['x2']
@@ -560,20 +614,11 @@ def arrange_symbol_order(filtered_results):
                             filtered_results[i]['for_while_horizontal'] = True
 
                 if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
-                    next_four_symbols = filtered_results[i + 1:i + 5]
-                    num_straight_leftright = sum(1 for symbol in next_four_symbols if symbol.get('straight_leftRight', False))
-                    num_elbow_top_left = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left', False))
-                    num_elbow_top_left_width = sum(1 for symbol in next_four_symbols if symbol.get('elbow_top_left_width', False))
-                    num_both = num_straight_leftright + num_elbow_top_left + num_elbow_top_left_width
-                    if num_both >= 2:
-                        filtered_results[i]['for_while_horizontal'] = True
-
-
-                if (filtered_results[i]['type'] == 'decision' and i + 4 < n):
                     past_three_symbols = filtered_results[i - 3:i]
                     num_arrowheads = sum(1 for symbol in past_three_symbols if symbol['type'] == 'arrowhead')
                     if num_arrowheads >= 2:
                         filtered_results[i]['for_while_horizontal'] = True
+
 
                 if (filtered_results[i]['type'] == 'decision' and filtered_results[i]['for_while'] == True and
                     filtered_results[i + 1]['type'] == 'arrowhead' and filtered_results[i + 1]['head_elbow_top_left'] == False):
@@ -603,7 +648,6 @@ def arrange_symbol_order(filtered_results):
         return filtered_results
 
     return filtered_results
-
 
 def detect_diagram(thresh2, thresh):
 
@@ -729,15 +773,19 @@ def detect_diagram(thresh2, thresh):
             'straight_down': False,
             'elbow_top_left': False,
             'elbow_top_left_width': False,
-            'elbow_bottom_left': False,
             'elbow_bottom_curved': False,
+            'elbow_bottom_left': False,
             'elbow_upward': False,
             'elbow_downward': False,
             'head_straight_down': False,
+            'head_straight_up': False,
             'head_elbow_top_left': False,
             'head_elbow_top_left_width': False,
             'head_elbow_bottom_left': False,
-            'head_elbow_bottom_curved': False
+            'head_elbow_bottom_curved': False,
+            'head_straight_leftRight': False,
+            'head_straight_left': False,
+            'head_straight_right': False
         }
         detection_result.append(detection_with_ocr)
 
@@ -1064,7 +1112,8 @@ def convert_to_pseudocode(detections):
 
             #HORIZONTAL REPEAT/WHILE LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
-            element['for_while_horizontal'] == True:
+            element['for_while_horizontal'] == True and \
+            element['for_while'] == False:
                 commands = []
                 j = i + 1
                 decision_command = element['command']
@@ -1233,13 +1282,17 @@ def convert_to_pseudocode(detections):
             #REPEAT/WHILE LOOP
             elif i < len(detections) and element['type'] == 'decision' and \
             element['for_while'] == True and \
-            element['for_while_horizontal'] == False and \
             detections[i+1]['elbow_top_left'] == False:
 
 
                 falseBranch = []
 
                 decision_x = element['coordinates'][0]
+                decision_x1 = element['x1']
+                decision_x2 = element['x2']
+                decision_y1 = element['y1']
+                decision_y2 = element['y2']
+
                 j = i + 1
                 decision_command = element['command']
 
@@ -1250,14 +1303,42 @@ def convert_to_pseudocode(detections):
                     pseudocode.append(f"    {decision_command}")
 
                 # Find the next non-arrow element while finding arrow of > 100 width
-                while j < len(detections) and ((detections[j]['elbow_top_left'] != True) and (detections[j]['elbow_bottom_curved'] != True)) and (time.time() - start_time) < max_time:
+                while j < len(detections) and ((detections[j]['elbow_top_left'] != True)) and (time.time() - start_time) < max_time:
 
-                    if j < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                    if j+2 < len(detections) and detections[j]['type'] in ['arrow', 'arrowhead']:
+                        if detections[j]['elbow_bottom_curved'] == True:
+                          next_two_symbols = detections[j + 1:min(j + 3, len(detections))]  # Get the next two symbols
+                          is_arrowhead_in_range = any(
+                              symbol['type'] == 'arrowhead'and symbol['head_elbow_bottom_curved'] == True and decision_x1 < symbol['coordinates'][0] < decision_x2  # Check type and x-axis condition
+                              for symbol in next_two_symbols)  
+                          if is_arrowhead_in_range:
+                              break
+
+
+                        if detections[j]['straight_leftRight'] == True:
+                            if detections[j]['straight_leftRight'] == True:
+                              # Check 2 symbols before
+                              found_straight_up_before = False
+                              for k in range(max(0, j - 2), j):  # Iterate from j-2 to j-1 (inclusive), ensuring k >= 0
+                                if detections[k]['straight_up'] == True:
+                                  found_straight_up_before = True
+                                  
+
+                              # Check 2 symbols after
+                              found_straight_up_after = False
+                              for k in range(j + 1, min(len(detections), j + 3)):  # Iterate from j+1 to j+2 (inclusive), ensuring k < len(detections)
+                                if detections[k]['straight_up'] == True:
+                                  found_straight_up_after = True
+                                  
+
+                              if found_straight_up_before or found_straight_up_after:
+                                break
 
                         if ( (detections[j]['x1'] < detections[j]['x2'] < decision_x) or (detections[j]['x2'] > detections[j]['x1'] > decision_x) ):
                           popped_item = detections.pop(j)
                           falseBranch.append(popped_item)
                           j -= 1 # Decrement j here
+
                         j += 1
 
                     elif j < len(detections) and (detections[j]['type'] in ['process', 'data', 'terminator', 'decision']):
@@ -1272,7 +1353,7 @@ def convert_to_pseudocode(detections):
                         j += 1
 
 
-                if j < len(detections) and detections[j]['elbow_top_left'] == True:
+                if j < len(detections) and (detections[j]['elbow_top_left']) == True:
 
                     j += 1
 
@@ -1469,8 +1550,6 @@ def convert_to_pseudocode(detections):
 
 
 
-
-
 def translate_pseudocode(pseudocode):
     command_mapping = {
         "move forward": "F",
@@ -1641,7 +1720,10 @@ def is_valid_flowchart(sorted_result):
         elif label == 'arrow':
             if confidence < 0.50:
                 low_confidence_symbols.append(f"{label} (conf: {confidence})")
-            num_arrows += 1
+                
+            if detection['head_straight_up'] = False:
+                num_arrows += 1    
+            
             if any(
                 detection.get(key, False)
                 for key in ['elbow_upward', 'elbow_downward']
@@ -1655,7 +1737,8 @@ def is_valid_flowchart(sorted_result):
                 upward_arrow_count += 1
 
         elif label == 'arrowhead':
-            num_arrowheads += 1
+            if detection['head_straight_up'] = False:
+                num_arrowheads += 1
 
     # Error Conditions
 
