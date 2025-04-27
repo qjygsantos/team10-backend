@@ -1721,7 +1721,7 @@ def is_valid_flowchart(sorted_result):
             if confidence < 0.50:
                 low_confidence_symbols.append(f"{label} (conf: {confidence})")
                 
-            if detection['head_straight_up'] = False:
+            if detection['straight_up'] == False:
                 num_arrows += 1    
             
             if any(
@@ -1737,7 +1737,7 @@ def is_valid_flowchart(sorted_result):
                 upward_arrow_count += 1
 
         elif label == 'arrowhead':
-            if detection['head_straight_up'] = False:
+            if detection['head_straight_up'] == False:
                 num_arrowheads += 1
 
     # Error Conditions
