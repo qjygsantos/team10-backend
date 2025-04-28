@@ -662,9 +662,9 @@ def arrange_symbol_order(filtered_results):
 
     return filtered_results
 
+def detect_diagram(thresh2, thresh):
     result_ocr = perform_OCR(thresh)
-    result = model.predict(thresh2, conf=0.3, iou=0.7)[0]
-
+    result = model.predict(thresh2, conf=0.35, iou=0.65)[0]    
     
     boxes_np = result.boxes.xyxy.cpu().numpy()
     confs_np = result.boxes.conf.cpu().numpy()
