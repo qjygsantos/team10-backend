@@ -1668,7 +1668,7 @@ def is_valid_flowchart(sorted_result):
 
     # Error Conditions
 
-    if num_arrows == 0:
+    if num_arrows <= 1:
         errors.append("Missing arrows in the flowchart.")
 
     if num_process_data == 0:
