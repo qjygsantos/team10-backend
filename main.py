@@ -1602,7 +1602,7 @@ def is_valid_flowchart(sorted_result):
 
     terminator_commands = []  # Store commands of terminator symbols
     low_confidence_symbols = []  # Store low confidence symbols
-    unrecognized_commands = []  # Store unrecognized commands
+    unrecognized_commands = [] # Store unrecognized commands
 
     errors = []  # To accumulate error messages
     warnings = []  # To accumulate warning messages
@@ -1668,11 +1668,8 @@ def is_valid_flowchart(sorted_result):
 
     # Error Conditions
 
-    if num_symbols == 0:
-        errors.append("No symbols found in the flowchart.")
-
     if num_arrows == 0:
-        errors.append("No arrows found in the flowchart.")
+        errors.append("Missing arrows in the flowchart.")
 
     if num_process_data == 0:
         errors.append("Flowchart must include at least one process or data symbol.")
@@ -1681,42 +1678,22 @@ def is_valid_flowchart(sorted_result):
         errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
 
     if num_connectors % 2 != 0:
-        errors.append("Flowchart connectivity error: Missing connector link.")
-
-
-
+        errors.append("Missing connector")
 
     if num_symbols <= 10:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 1:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
+                errors.append("Missing arrows in the flowchart.")
 
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.75:
-                errors.append("Flowchart connectivity error: Missing arrows")
 
     if 20 >= num_symbols > 10:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 2:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
-
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.6:
-                errors.append("Flowchart connectivity error: Missing arrows")
+                errors.append("Missing arrows in the flowchart.")
 
 
     if 30 >= num_symbols > 20:
@@ -1724,16 +1701,7 @@ def is_valid_flowchart(sorted_result):
             val = abs(num_symbols - num_arrowheads)
 
             if val > 3:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
-
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.4:
-                errors.append("Flowchart connectivity error: Missing arrows")
+                errors.append("Missing arrows in the flowchart.")
 
 
     if num_symbols > 30:
@@ -1741,28 +1709,17 @@ def is_valid_flowchart(sorted_result):
             val = abs(num_symbols - num_arrowheads)
 
             if val > 4:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
-
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.35:
-                errors.append("Flowchart connectivity error: Missing arrows")
+                errors.append("Missing arrows in the flowchart.")
 
 
     if command_none_count >= 1:
-        errors.append(f"One or more symbols contain unrecognized commands or no command at all: {', '.join(unrecognized_commands)}")
+        errors.append(f"One or more symbols contain unrecognized commands/conditions or no command at all: {', '.join(unrecognized_commands)}")
 
     # Warnings
 
     if low_confidence_symbols:
         warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
 
-    if elbow_arrow_count != 0 and abs(num_symbols - elbow_arrow_count ) >= 3:
-        warnings.append("Flowchart connectivity warning: check for missing arrows")
 
     # Final Decision
     if not errors and not warnings:
@@ -1778,16 +1735,15 @@ def is_valid_flowchart(sorted_result):
             "dialog_message": "Click next to proceed. Double-check the pseudocode before running the commands on the robot!"
         }
     else:
+        numbered_errors = "\n\n".join([f"{i + 1}. {error}" for i, error in enumerate(errors)])
         return {
             "status": "failed",
-            "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + "\n".join(errors),
+            "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + numbered_errors,
             "dialog_message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details."
         }
 
 
-
 def validate_pseudocode(pseudocode: str):
-    # Valid commands
     valid_commands = {
         "turn left",
         "turn right",
@@ -1802,7 +1758,6 @@ def validate_pseudocode(pseudocode: str):
     loop_stack = []
     conditional_stack = []
 
-    # Error message format
     def generate_error(line_no, line_text, description):
         return {
             "status": "fail",
@@ -1814,90 +1769,86 @@ line {line_no}
 SyntaxError: {description}"""
         }
 
-    # Check nested structures
     def check_nested(line_no, current_structure):
-        if loop_stack or conditional_stack:
+        if loop_stack and current_structure == "repeat":
             return generate_error(
                 line_no,
                 pseudocode_lines[line_no - 1],
-                f"nested '{current_structure}' is not supported"
+                f"nested 'repeat' is not supported"
+            )
+        if conditional_stack:
+            return generate_error(
+                line_no,
+                pseudocode_lines[line_no - 1],
+                f"nested '{current_structure}' inside 'if' is not supported"
             )
         return None
 
-    # Command checker
     def check_line(line, line_no):
-        line = line.strip().lower()  # Case-insensitive
+        line = line.strip().lower()
 
         if line in {"start", "end"}:
-            return None  # Start and Stop are checked later
+            return None
 
         if line.startswith("move forward") or line.startswith("move backward"):
             parts = line.split()
-            if len(parts) == 2 and parts[1] == "forward" or parts[1] == "backward":
-                return None  # "move forward" or "move backward" (default 1 sec)
-            try:
-                if len(parts) == 4 and parts[2].isdigit() and parts[3] == "seconds":
-                    seconds = int(parts[2])
-                    if 1 <= seconds <= 5:
-                        return None  # Valid time range
-                elif len(parts) == 4 and parts[2] == "1" and parts[3] == "second":
-                    return None  # "move forward 1 second"
-                else:
-                    raise ValueError("malformed 'move forward/backward {1-5} seconds'")
-            except (ValueError, IndexError):
-                return generate_error(line_no, line, "malformed 'move forward/backward {1-5} seconds'")
+            if len(parts) == 2 and parts[1] in {"forward", "backward"}:
+                return None
+            if len(parts) == 4 and parts[0] == "move" and parts[1] in {"forward", "backward"}:
+                time_val = parts[2]
+                time_unit = parts[3]
+                if time_val.isdigit():
+                    seconds = int(time_val)
+                    if 1 <= seconds <= 5 and time_unit in {"second", "seconds"}:
+                        return None
+                return generate_error(line_no, line, "invalid 'move forward/backward' command")
+            return generate_error(line_no, line, "invalid 'move forward/backward' command")
 
         elif line.startswith("wait"):
             parts = line.split()
-            try:
-                if len(parts) == 3 and parts[1].isdigit() and parts[2] == "seconds":
-                    seconds = int(parts[1])
-                    if 1 <= seconds <= 5:
-                        return None  # Valid time range for wait command
-                    else:
-                        raise ValueError("wait time out of range (1-5 seconds)")
-                elif len(parts) == 3 and parts[1] == "1" and parts[2] == "second":
-                    return None  # "wait 1 second"
-                else:
-                    raise ValueError("malformed 'wait {1-5} seconds'")
-            except (ValueError, IndexError):
-                return generate_error(line_no, line, "malformed 'wait {1-5} seconds'")
-
-
+            if len(parts) == 3:
+                time_val = parts[1]
+                time_unit = parts[2]
+                if time_val.isdigit():
+                    seconds = int(time_val)
+                    if 1 <= seconds <= 5 and time_unit in {"second", "seconds"}:
+                        return None
+            return generate_error(line_no, line, "malformed 'wait {1-5} second(s)'")
 
         elif line.startswith("repeat"):
-            try:
-                times = int(line.split()[1])
-                if not (1 <= times <= 5):
-                    raise ValueError("repeat count out of range (1-5 times)")
-                error = check_nested(line_no, "repeat")
-                if error:
-                    return error
-                loop_stack.append(line_no)
-            except (ValueError, IndexError):
-                return generate_error(line_no, line, "malformed 'repeat {1-5} times'")
+            parts = line.split()
+            if len(parts) == 3 and parts[1].isdigit() and parts[2] in {"time", "times"}:
+                times = int(parts[1])
+                if 1 <= times <= 5:
+                    error = check_nested(line_no, "repeat")
+                    if error:
+                        return error
+                    loop_stack.append(("repeat", line_no))
+                    return None
+                return generate_error(line_no, line, "repeat count out of range (1-5)")
+            return generate_error(line_no, line, "unrecognized 'repeat' statement")
 
         elif line == "endrepeat":
-            if not loop_stack:
+            if not loop_stack or loop_stack[-1][0] != "repeat":
                 return generate_error(line_no, line, "'endrepeat' without matching 'repeat'")
             loop_stack.pop()
 
         elif line.startswith("while"):
             if line not in {"while no obstacle detected", "while obstacle detected"}:
-                return generate_error(line_no, line, "unrecognized 'while' condition")
+                return generate_error(line_no, line, "unrecognized 'while' statement")
             error = check_nested(line_no, "while")
             if error:
                 return error
-            loop_stack.append(line_no)
+            loop_stack.append(("while", line_no))
 
         elif line == "endwhile":
-            if not loop_stack:
+            if not loop_stack or loop_stack[-1][0] != "while":
                 return generate_error(line_no, line, "'endwhile' without matching 'while'")
             loop_stack.pop()
 
         elif line.startswith("if"):
             if line not in {"if no obstacle detected then", "if obstacle detected then"}:
-                return generate_error(line_no, line, "unrecognized 'if' condition")
+                return generate_error(line_no, line, "unrecognized 'if' statement")
             error = check_nested(line_no, "if")
             if error:
                 return error
@@ -1916,34 +1867,33 @@ SyntaxError: {description}"""
             return None
 
         else:
-            return generate_error(line_no, line, "unrecognized command")
+            return generate_error(line_no, line, f"unrecognized command: '{line}'")
 
         return None
 
-    # First and last lines must be Start and Stop
     if pseudocode_lines[0].strip().lower() != "start":
         return generate_error(1, pseudocode_lines[0], "first line must be 'start'")
     if pseudocode_lines[-1].strip().lower() != "end":
         return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'end'")
 
-    # Check lines one by one
+    if len(pseudocode_lines) == 2:
+        return generate_error(1, pseudocode_lines[0], "'start' and 'end' only, no commands between")
+
     for line_no, line in enumerate(pseudocode_lines, start=1):
         error = check_line(line, line_no)
         if error:
             return error
 
-    # Additional checks
-    if len(pseudocode_lines) == 2 and pseudocode_lines[0].strip().lower() == "start" and pseudocode_lines[1].strip().lower() == "end":
-        return generate_error(1, pseudocode_lines[0], "'start' and 'end' only, no commands between")
-
     if loop_stack:
-        return generate_error(loop_stack[-1], pseudocode_lines[loop_stack[-1] - 1], "unclosed 'repeat' or 'while'")
+        structure, open_line = loop_stack[-1]
+        return generate_error(open_line, pseudocode_lines[open_line - 1], f"unclosed '{structure}'")
 
     if conditional_stack:
-        return generate_error(conditional_stack[-1], pseudocode_lines[conditional_stack[-1] - 1], "unclosed 'if'")
+        open_line = conditional_stack[-1]
+        return generate_error(open_line, pseudocode_lines[open_line - 1], "unclosed 'if'")
 
-    # If no errors
     return {"status": "success", "error_message": "Pseudocode is valid"}
+
 
 
 
