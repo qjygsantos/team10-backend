@@ -1674,11 +1674,11 @@ def is_valid_flowchart(sorted_result):
     if num_process_data == 0:
         errors.append("Flowchart must include at least one process or data symbol.")
 
-	if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']) \
-   		or (('start' in terminator_commands and 'end' in terminator_commands) and terminator_commands.index('end') < terminator_commands.index('start')) \
-   		or (sorted_result and (sorted_result[0]['type'] != 'terminator' or sorted_result[0].get('command', '').strip().lower() != 'start')) \
-   		or (sorted_result and (sorted_result[-1]['type'] != 'terminator' or sorted_result[-1].get('command', '').strip().lower() != 'end')):
-   		errors.append("Flowchart must contain both the 'start' and 'end' terminators in the correct order, with 'start' as the first symbol and 'end' as the last symbol.")
+    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']) \
+   	or (('start' in terminator_commands and 'end' in terminator_commands) and terminator_commands.index('end') < terminator_commands.index('start')) \
+   	or (sorted_result and (sorted_result[0]['type'] != 'terminator' or sorted_result[0].get('command', '').strip().lower() != 'start')) \
+   	or (sorted_result and (sorted_result[-1]['type'] != 'terminator' or sorted_result[-1].get('command', '').strip().lower() != 'end')):
+   	errors.append("Flowchart must contain both the 'start' and 'end' terminators in the correct order, with 'start' as the first symbol and 'end' as the last symbol.")
 
 
     if num_connectors % 2 != 0:
