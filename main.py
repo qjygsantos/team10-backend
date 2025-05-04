@@ -1717,8 +1717,8 @@ def is_valid_flowchart(sorted_result):
 
     # Warnings
 
-    if low_confidence_symbols:
-        warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
+    #if low_confidence_symbols:
+    #   warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
 
 
     # Final Decision
