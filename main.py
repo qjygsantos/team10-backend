@@ -1805,8 +1805,8 @@ SyntaxError: {description}"""
                     seconds = int(time_val)
                     if 1 <= seconds <= 5 and time_unit in {"second", "seconds"}:
                         return None
-                return generate_error(line_no, line, "invalid 'move forward/backward' command")
-            return generate_error(line_no, line, "invalid 'move forward/backward' command")
+                return generate_error(line_no, line, f"invalid command: '{line}'")
+            return generate_error(line_no, line, f"invalid command: '{line}'")
 
         elif line.startswith("wait"):
             parts = line.split()
@@ -1817,7 +1817,7 @@ SyntaxError: {description}"""
                     seconds = int(time_val)
                     if 1 <= seconds <= 5 and time_unit in {"second", "seconds"}:
                         return None
-            return generate_error(line_no, line, "malformed 'wait {1-5} second(s)'")
+            return generate_error(line_no, line, f"invalid command: '{line}'")
 
         elif line.startswith("repeat"):
             parts = line.split()
@@ -1830,16 +1830,16 @@ SyntaxError: {description}"""
                     loop_stack.append(("repeat", line_no))
                     return None
                 return generate_error(line_no, line, "repeat count out of range (1-5)")
-            return generate_error(line_no, line, "unrecognized 'repeat' statement")
+            return generate_error(line_no, line, "invalid statement")
 
         elif line == "endrepeat":
             if not loop_stack or loop_stack[-1][0] != "repeat":
-                return generate_error(line_no, line, "'endrepeat' without matching 'repeat'")
+                return generate_error(line_no, line, "invalid statement ('endrepeat' without matching 'repeat')")
             loop_stack.pop()
 
         elif line.startswith("while"):
             if line not in {"while no obstacle detected", "while obstacle detected"}:
-                return generate_error(line_no, line, "unrecognized 'while' statement")
+                return generate_error(line_no, line, f"invalid statement: '{line}'")
             error = check_nested(line_no, "while")
             if error:
                 return error
@@ -1847,12 +1847,12 @@ SyntaxError: {description}"""
 
         elif line == "endwhile":
             if not loop_stack or loop_stack[-1][0] != "while":
-                return generate_error(line_no, line, "'endwhile' without matching 'while'")
+                return generate_error(line_no, line, "invalid statement ('endwhile' without matching 'while')")
             loop_stack.pop()
 
         elif line.startswith("if"):
             if line not in {"if no obstacle detected then", "if obstacle detected then"}:
-                return generate_error(line_no, line, "unrecognized 'if' statement")
+                return generate_error(line_no, line,  f"invalid statement: '{line}'")
             error = check_nested(line_no, "if")
             if error:
                 return error
@@ -1860,18 +1860,18 @@ SyntaxError: {description}"""
 
         elif line == "else":
             if not conditional_stack:
-                return generate_error(line_no, line, "'else' without matching 'if'")
+                return generate_error(line_no, line, "invalid statement ('else' without matching 'if')")
 
         elif line == "endif":
             if not conditional_stack:
-                return generate_error(line_no, line, "'endif' without matching 'if'")
+                return generate_error(line_no, line, "invalid statement ('endif' without matching 'if')")
             conditional_stack.pop()
 
         elif line in valid_commands:
             return None
 
         else:
-            return generate_error(line_no, line, f"unrecognized command: '{line}'")
+            return generate_error(line_no, line, f"invalid command: '{line}'")
 
         return None
 
@@ -1890,11 +1890,11 @@ SyntaxError: {description}"""
 
     if loop_stack:
         structure, open_line = loop_stack[-1]
-        return generate_error(open_line, pseudocode_lines[open_line - 1], f"unclosed '{structure}'")
+        return generate_error(open_line, pseudocode_lines[open_line - 1], f"invalid statement (unclosed '{structure}')")
 
     if conditional_stack:
         open_line = conditional_stack[-1]
-        return generate_error(open_line, pseudocode_lines[open_line - 1], "unclosed 'if'")
+        return generate_error(open_line, pseudocode_lines[open_line - 1], "invalid statement (unclosed 'if')")
 
     return {"status": "success", "error_message": "Pseudocode is valid"}
 
