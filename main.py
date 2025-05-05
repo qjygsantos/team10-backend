@@ -1805,8 +1805,8 @@ SyntaxError: {description}"""
                     seconds = int(time_val)
                     if 1 <= seconds <= 5 and time_unit in {"second", "seconds"}:
                         return None
-                return generate_error(line_no, line, f"invalid command: '{line}'")
-            return generate_error(line_no, line, f"invalid command: '{line}'")
+                return generate_error(line_no, line, f"invalid command '{line}'")
+            return generate_error(line_no, line, f"invalid command '{line}'")
 
         elif line.startswith("wait"):
             parts = line.split()
@@ -1817,7 +1817,7 @@ SyntaxError: {description}"""
                     seconds = int(time_val)
                     if 1 <= seconds <= 5 and time_unit in {"second", "seconds"}:
                         return None
-            return generate_error(line_no, line, f"invalid command: '{line}'")
+            return generate_error(line_no, line, f"invalid command '{line}'")
 
         elif line.startswith("repeat"):
             parts = line.split()
@@ -1839,7 +1839,7 @@ SyntaxError: {description}"""
 
         elif line.startswith("while"):
             if line not in {"while no obstacle detected", "while obstacle detected"}:
-                return generate_error(line_no, line, f"invalid statement: '{line}'")
+                return generate_error(line_no, line, f"invalid statement '{line}'")
             error = check_nested(line_no, "while")
             if error:
                 return error
@@ -1852,7 +1852,7 @@ SyntaxError: {description}"""
 
         elif line.startswith("if"):
             if line not in {"if no obstacle detected then", "if obstacle detected then"}:
-                return generate_error(line_no, line,  f"invalid statement: '{line}'")
+                return generate_error(line_no, line,  f"invalid statement '{line}'")
             error = check_nested(line_no, "if")
             if error:
                 return error
@@ -1871,17 +1871,17 @@ SyntaxError: {description}"""
             return None
 
         else:
-            return generate_error(line_no, line, f"invalid command: '{line}'")
+            return generate_error(line_no, line, f"invalid command '{line}'")
 
         return None
 
     if pseudocode_lines[0].strip().lower() != "start":
-        return generate_error(1, pseudocode_lines[0], "first line must be 'start'")
+        return generate_error(1, pseudocode_lines[0], "missing start/end statement (first line must be 'start')")
     if pseudocode_lines[-1].strip().lower() != "end":
-        return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "last line must be 'end'")
+        return generate_error(len(pseudocode_lines), pseudocode_lines[-1], "missing start/end statement (last line must be 'end')")
 
     if len(pseudocode_lines) == 2:
-        return generate_error(1, pseudocode_lines[0], "'start' and 'end' only, no commands between")
+        return generate_error(1, pseudocode_lines[0], "no command between 'start' and 'end'")
 
     for line_no, line in enumerate(pseudocode_lines, start=1):
         error = check_line(line, line_no)
