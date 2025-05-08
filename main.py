@@ -1674,7 +1674,7 @@ def is_valid_flowchart(sorted_result):
     if num_process_data == 0:
         errors.append("Flowchart must include at least one process or data symbol.")
         
-	if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
+    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
         errors.append("Flowchart must contain both the 'start' and 'end' terminators in the correct order, with 'start' as the first symbol and 'end' as the last symbol.")
 
 
