@@ -1405,9 +1405,9 @@ def convert_to_pseudocode(detections):
 
                             j -= 1 # Decrement j here
                             j += 1
-
-                        command = detections[j]['command']
-                        pseudocode.append(f"        {command}")
+                        if detections[j]['type'] != 'connector':
+                            command = detections[j]['command']
+                            pseudocode.append(f"        {command}")
 
                         if decision_command.startswith("repeat"):
                             pseudocode.append("    endrepeat")
