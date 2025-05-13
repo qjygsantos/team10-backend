@@ -281,6 +281,11 @@ def text_matching(text, symbol_type=None):
     elif best_match in ['move forward', 'move backward']:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
+            if normalized_text in ["move forward i second","move forward isecond","move forwardi second"]:
+              return "move forward 1 second"
+            elif normalized_text in ["move backward i second","move backward isecond","move backwardi second"]:
+              return "move backward 1 second"
+            else:
             return best_match if highest_ratio >= 55 else f"unknown ({text})"
         else:
             num = ''.join(temp)
@@ -300,6 +305,11 @@ def text_matching(text, symbol_type=None):
     ] and highest_ratio >= 55:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:
+            if normalized_text in ["move forward i second","move forward isecond","move forwardi second"]:
+              return "move forward 1 second"
+            elif normalized_text in ["move backward i second","move backward isecond","move backwardi second"]:
+              return "move backward 1 second"
+            else:
             return f"unknown ({text})"
         num = ''.join(temp)
         if 1 <= int(num) <= 5:
@@ -1734,7 +1744,7 @@ def is_valid_flowchart(sorted_result):
 
     terminator_commands = []  # Store commands of terminator symbols
     low_confidence_symbols = []  # Store low confidence symbols
-    unrecognized_commands = []  # Store unrecognized commands
+    unrecognized_commands = [] # Store unrecognized commands
 
     errors = []  # To accumulate error messages
     warnings = []  # To accumulate warning messages
@@ -1782,10 +1792,7 @@ def is_valid_flowchart(sorted_result):
         elif label == 'arrow':
             if confidence < 0.50:
                 low_confidence_symbols.append(f"{label} (conf: {confidence})")
-                
-            if detection['straight_up'] == False:
-                num_arrows += 1    
-            
+            num_arrows += 1
             if any(
                 detection.get(key, False)
                 for key in ['elbow_upward', 'elbow_downward']
@@ -1799,60 +1806,37 @@ def is_valid_flowchart(sorted_result):
                 upward_arrow_count += 1
 
         elif label == 'arrowhead':
-            if detection['head_straight_up'] == False:
-                num_arrowheads += 1   
+            num_arrowheads += 1
 
     # Error Conditions
 
-    if num_symbols == 0:
-        errors.append("No symbols found in the flowchart.")
-
-    if num_arrows == 0:
-        errors.append("No arrows found in the flowchart.")
+    if num_arrows <= 1:
+        errors.append("Missing arrows in the flowchart.")
 
     if num_process_data == 0:
         errors.append("Flowchart must include at least one process or data symbol.")
-
+        
     if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
-        errors.append("Flowchart must contain both the 'start' and 'end' terminators.")
+        errors.append("Flowchart must contain both the 'start' and 'end' terminators in the correct order, with 'start' as the first symbol and 'end' as the last symbol.")
+
 
     if num_connectors % 2 != 0:
-        errors.append("Flowchart connectivity error: Missing connector link.")
-
-
-
+        errors.append("Missing connector")
 
     if num_symbols <= 10:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 1:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
+                errors.append("Missing arrows in the flowchart.")
 
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.75:
-                errors.append("Flowchart connectivity error: Missing arrows")
 
     if 20 >= num_symbols > 10:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 2:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
-
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.6:
-                errors.append("Flowchart connectivity error: Missing arrows")
+                errors.append("Missing arrows in the flowchart.")
 
 
     if 30 >= num_symbols > 20:
@@ -1860,16 +1844,7 @@ def is_valid_flowchart(sorted_result):
             val = abs(num_symbols - num_arrowheads)
 
             if val > 3:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
-
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.4:
-                errors.append("Flowchart connectivity error: Missing arrows")
+                errors.append("Missing arrows in the flowchart.")
 
 
     if num_symbols > 30:
@@ -1877,28 +1852,17 @@ def is_valid_flowchart(sorted_result):
             val = abs(num_symbols - num_arrowheads)
 
             if val > 4:
-                errors.append("Flowchart connectivity error: Missing arrows")
-        else:
-
-            if num_symbols >= num_arrowheads:
-                val = abs(num_symbols - num_arrowheads) / max(num_symbols, num_arrowheads)
-            else:
-                val = abs(num_arrowheads - num_symbols) / max(num_symbols, num_arrowheads)
-
-            if val >= 0.35:
-                errors.append("Flowchart connectivity error: Missing arrows")
+                errors.append("Missing arrows in the flowchart.")
 
 
     if command_none_count >= 1:
-        errors.append(f"One or more symbols contain unrecognized commands or no command at all: {', '.join(unrecognized_commands)}")
+        errors.append(f"One or more symbols contain unrecognized commands/conditions or no command at all: {', '.join(unrecognized_commands)}")
 
     # Warnings
 
-    if low_confidence_symbols:
-        warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
+    #if low_confidence_symbols:
+    #   warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
 
-    if elbow_arrow_count != 0 and abs(num_symbols - elbow_arrow_count ) >= 3:
-        warnings.append("Flowchart connectivity warning: check for missing arrows")
 
     # Final Decision
     if not errors and not warnings:
@@ -1914,12 +1878,12 @@ def is_valid_flowchart(sorted_result):
             "dialog_message": "Click next to proceed. Double-check the pseudocode before running the commands on the robot!"
         }
     else:
+        numbered_errors = "\n\n".join([f"{i + 1}. {error}" for i, error in enumerate(errors)])
         return {
             "status": "failed",
-            "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + "\n".join(errors),
+            "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + numbered_errors,
             "dialog_message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details."
         }
-
 
 
 def validate_pseudocode(pseudocode: str):
