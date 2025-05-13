@@ -281,7 +281,12 @@ def text_matching(text, symbol_type=None):
     elif best_match in ['move forward', 'move backward']:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:  # No numbers detected
-            return best_match if highest_ratio >= 55 else f"unknown ({text})"
+            if normalized_text in ["move forward i second","move forward isecond","move forwardi second"]:
+                return "move forward 1 second"
+            elif normalized_text in ["move backward i second","move backward isecond","move backwardi second"]:
+                return "move backward 1 second"
+            else:
+                return best_match if highest_ratio >= 55 else f"unknown ({text})"
         else:
             num = ''.join(temp)
             # Add logic for "move forward/backward {1-5} seconds" directly
@@ -300,7 +305,12 @@ def text_matching(text, symbol_type=None):
     ] and highest_ratio >= 55:
         temp = re.findall(r'\d+', normalized_text)
         if len(temp) == 0:
-            return f"unknown ({text})"
+            if normalized_text in ["move forward i second","move forward isecond","move forwardi second"]:
+                return "move forward 1 second"
+            elif normalized_text in ["move backward i second","move backward isecond","move backwardi second"]:
+                return "move backward 1 second"
+            else:
+                return f"unknown ({text})"
         num = ''.join(temp)
         if 1 <= int(num) <= 5:
             return f"{best_match.replace('seconds', '')}{num} second" if int(num) == 1 else f"{best_match.replace('seconds', '')}{num} seconds"
