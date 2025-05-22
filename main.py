@@ -1625,7 +1625,6 @@ def is_valid_flowchart(sorted_result):
 
         if label not in ['arrow', 'arrowhead']:
 
-
             if confidence < 0.50:
                 low_confidence_symbols.append(f"{label} (conf: {confidence})")
 
@@ -1679,58 +1678,47 @@ def is_valid_flowchart(sorted_result):
     # Error Conditions
 
     if num_arrows <= 1:
-        errors.append("Missing arrows in the flowchart.")
+        errors.append("The symbols and texts were detected properly, however, there seems to be too few arrows in your flowchart. Please make sure that the steps are connected with arrows.")
 
     if num_process_data == 0:
-        errors.append("Flowchart must include at least one process or data symbol.")
-        
-    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
-        errors.append("Flowchart must contain both the 'start' and 'end' terminators in the correct order, with 'start' as the first symbol and 'end' as the last symbol.")
+        errors.append("The flowchart elements were identified, however, it seems that no process or data symbol was included. Please add at least one process or data step to describe the action.")
 
+    if num_terminators < 2 or not all(x in terminator_commands for x in ['start', 'end']):
+        errors.append("The symbols and texts were detected properly, however, your flowchart must contain both a 'start' and an 'end' symbol. Make sure the 'start' is the first symbol and 'end' is the last.")
 
     if num_connectors % 2 != 0:
-        errors.append("Missing connector")
+        errors.append("Your symbols and texts were detected correctly, however, there's a mismatch in connector symbols. Connectors should appear in pairs (entry and exit).")
 
     if num_symbols <= 10:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 1:
-                errors.append("Missing arrows in the flowchart.")
-
+                errors.append("The flowchart was read successfully, however, some arrows may be missing. Each step should have incoming and outgoing arrows unless it's a start or end symbol.")
 
     if 20 >= num_symbols > 10:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 2:
-                errors.append("Missing arrows in the flowchart.")
-
+                errors.append("The flowchart was read successfully, however, based on the number of steps, there appear to be missing arrows. Please ensure every symbol is properly connected.")
 
     if 30 >= num_symbols > 20:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 3:
-                errors.append("Missing arrows in the flowchart.")
-
+                errors.append("The flowchart was detected properly, however, as it contains many steps, some arrows may be missing. Please double-check the connections between steps.")
 
     if num_symbols > 30:
         if num_decision == 0:
             val = abs(num_symbols - num_arrowheads)
 
             if val > 4:
-                errors.append("Missing arrows in the flowchart.")
-
+                errors.append("Your large flowchart was read successfully, however, it seems to be missing several arrows. Check that each symbol is properly connected to the next.")
 
     if command_none_count >= 1:
-        errors.append(f"One or more symbols contain unrecognized commands/conditions or no command at all: {', '.join(unrecognized_commands)}")
-
-    # Warnings
-
-    #if low_confidence_symbols:
-    #   warnings.append(f"At least one low confidence symbol was found ({', '.join(low_confidence_symbols)}).")
-
+        errors.append(f"The symbols and layout were detected correctly, however some steps have unrecognized or missing text. Please revise the following: {', '.join(unrecognized_commands)}")
 
     # Final Decision
     if not errors and not warnings:
@@ -1752,6 +1740,7 @@ def is_valid_flowchart(sorted_result):
             "error_list": f"Following mistakes below were detected in the flowchart:\n\n" + numbered_errors,
             "dialog_message": "Uh oh! I think there's something wrong. Tap the error icon on the bottom for more details."
         }
+
 
 
 def validate_pseudocode(pseudocode: str):
